@@ -11,6 +11,10 @@
 #include "EnhancedInputSubsystems.h"
 #include "InputActionValue.h"
 #include "AmiyaDemo.h"
+#include "Kismet/GameplayStatics.h"
+#include "GameFramework/DamageType.h"
+#include "DrawDebugHelpers.h"
+#include "Animation/AnimMontage.h"
 
 AAmiyaDemoCharacter::AAmiyaDemoCharacter()
 {
@@ -65,6 +69,9 @@ void AAmiyaDemoCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInput
 
 		// Looking
 		EnhancedInputComponent->BindAction(LookAction, ETriggerEvent::Triggered, this, &AAmiyaDemoCharacter::Look);
+
+		// Attack
+		EnhancedInputComponent->BindAction(AttackAction, ETriggerEvent::Started, this, &AAmiyaDemoCharacter::Attack);
 	}
 	else
 	{
@@ -130,4 +137,39 @@ void AAmiyaDemoCharacter::DoJumpEnd()
 {
 	// signal the character to stop jumping
 	StopJumping();
+}
+
+void AAmiyaDemoCharacter::Attack()
+{
+
+	FVector ActorLocal = AAmiyaDemoCharacter::GetActorLocation();
+	FVector Forward = AAmiyaDemoCharacter::GetActorForwardVector();
+	FVector Start = ActorLocal + Forward * StartOffset;
+	FVector End = Start + Forward * AttackRange;
+
+	FHitResult HitResult;
+	FCollisionQueryParams Params;
+	FCollisionShape Sphere;
+
+	Sphere = FCollisionShape::MakeSphere(Radius);
+	Params.AddIgnoredActor(this);
+	bool BHit = GetWorld()->SweepSingleByChannel(HitResult, Start, End,	FQuat::Identity, ECC_Visibility, Sphere, Params);
+
+	if (BHit)
+	{
+		if (HitResult.GetActor())
+		{
+			UGameplayStatics::ApplyDamage(HitResult.GetActor(), Damage, GetController(), this, UDamageType::StaticClass());
+		}
+	}
+
+	DrawDebugSphere(GetWorld(), Start, Radius, 16, FColor::Green, false, 1.0f);
+	DrawDebugSphere(GetWorld(), End, Radius, 16, FColor::Red, false, 1.0f);
+	DrawDebugLine(GetWorld(), Start, End, FColor::Blue, false, 1.0f, 0, 2.0f);
+
+	if (AttackMontage)
+	{
+		PlayAnimMontage(AttackMontage);
+	}
+
 }

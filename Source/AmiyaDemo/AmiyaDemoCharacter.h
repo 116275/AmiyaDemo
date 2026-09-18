@@ -11,6 +11,7 @@ class USpringArmComponent;
 class UCameraComponent;
 class UInputAction;
 struct FInputActionValue;
+class UAnimMontage;
 
 DECLARE_LOG_CATEGORY_EXTERN(LogTemplateCharacter, Log, All);
 
@@ -31,7 +32,7 @@ class AAmiyaDemoCharacter : public ACharacter
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Components", meta = (AllowPrivateAccess = "true"))
 	UCameraComponent* FollowCamera;
 	
-protected:
+protected:  //暴露给编辑器的输入相关属性
 
 	/** Jump Input Action */
 	UPROPERTY(EditAnywhere, Category="Input")
@@ -48,6 +49,8 @@ protected:
 	/** Mouse Look Input Action */
 	UPROPERTY(EditAnywhere, Category="Input")
 	UInputAction* MouseLookAction;
+
+	UPROPERTY(EditAnywhere, Category = "Input") UInputAction* AttackAction;
 
 public:
 
@@ -66,6 +69,8 @@ protected:
 
 	/** Called for looking input */
 	void Look(const FInputActionValue& Value);
+
+	void Attack();
 
 public:
 
@@ -92,5 +97,16 @@ public:
 
 	/** Returns FollowCamera subobject **/
 	FORCEINLINE class UCameraComponent* GetFollowCamera() const { return FollowCamera; }
+
+public:  //自定义参数
+
+	float StartOffset = 50.f;
+	float AttackRange = 100.f;
+	float Radius = 50.f;
+	float Damage = 50.f;
+
+protected:
+
+	UPROPERTY(EditAnywhere, Category = "Combat") UAnimMontage* AttackMontage = nullptr;
 };
 
