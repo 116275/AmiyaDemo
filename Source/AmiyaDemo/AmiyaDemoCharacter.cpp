@@ -139,6 +139,16 @@ void AAmiyaDemoCharacter::DoJumpEnd()
 	StopJumping();
 }
 
+void AAmiyaDemoCharacter::Tick(float Delta)
+{
+	Super::Tick(Delta);
+	TimeSinceLastDamage += Delta;
+	if (CurrentHealth < MaxHealth && TimeSinceLastDamage >= RegenTime)
+	{
+		CurrentHealth = FMath::Clamp(CurrentHealth + RegenAmount * Delta, 0.f, MaxHealth);
+	}
+}
+
 void AAmiyaDemoCharacter::Attack()
 {
 
@@ -163,13 +173,25 @@ void AAmiyaDemoCharacter::Attack()
 		}
 	}
 
-	DrawDebugSphere(GetWorld(), Start, Radius, 16, FColor::Green, false, 1.0f);
-	DrawDebugSphere(GetWorld(), End, Radius, 16, FColor::Red, false, 1.0f);
-	DrawDebugLine(GetWorld(), Start, End, FColor::Blue, false, 1.0f, 0, 2.0f);
-
 	if (AttackMontage)
 	{
 		PlayAnimMontage(AttackMontage);
 	}
 
+}
+
+float AAmiyaDemoCharacter::TakeDamage(float DamageAmount, FDamageEvent const& DamageEvent, AController* EventInstigator, AActor* DamageCauser)
+{
+	float ActualDamage = Super::TakeDamage(DamageAmount, DamageEvent, EventInstigator, DamageCauser);
+
+	if (ActualDamage <= 0.f)
+	{
+		return 0.f;
+	}
+
+	CurrentHealth = FMath::Clamp(CurrentHealth - ActualDamage, 0.f, MaxHealth);
+
+	TimeSinceLastDamage = 0;
+
+	return ActualDamage;
 }

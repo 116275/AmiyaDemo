@@ -49,4 +49,9 @@ protected:
 	/** Returns true if the player should use UMG touch controls */
 	bool ShouldUseTouchControls() const;
 
+private:
+
+	// 可以在UE编辑器中设置玩家HUD的类
+	UPROPERTY(EditAnywhere, Category = "UI") TSubclassOf<UUserWidget> PlayerHUDClass;
+
 };

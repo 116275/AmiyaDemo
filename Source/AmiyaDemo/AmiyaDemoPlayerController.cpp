@@ -31,9 +31,19 @@ void AAmiyaDemoPlayerController::BeginPlay()
 		}
 
 	}
+
+	if (PlayerHUDClass)
+	{
+		UUserWidget* PlayerHUD = CreateWidget<UUserWidget>(this, PlayerHUDClass);
+		if (PlayerHUD)
+		{
+			PlayerHUD->AddToPlayerScreen();
+		}
+	}
+
 }
 
-void AAmiyaDemoPlayerController::SetupInputComponent()
+void AAmiyaDemoPlayerController::SetupInputComponent()  // ≈‰÷√ ‰»Î
 {
 	Super::SetupInputComponent();
 

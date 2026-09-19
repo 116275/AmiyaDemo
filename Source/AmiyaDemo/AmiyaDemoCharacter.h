@@ -72,6 +72,10 @@ protected:
 
 	void Attack();
 
+	virtual void Tick(float Delta) override;
+
+	virtual float TakeDamage(float DamageAmount, struct FDamageEvent const& DamageEvent, AController* EventInstigator, AActor* DamageCauser) override;
+
 public:
 
 	/** Handles move inputs from either controls or UI interfaces */
@@ -90,6 +94,11 @@ public:
 	UFUNCTION(BlueprintCallable, Category="Input")
 	virtual void DoJumpEnd();
 
+	// 为了读取Private变量提供两个只读接口，BlueprintPure表示不改变对象状态
+	UFUNCTION(BlueprintPure, Category = "Health") float GetCurrentHealth() const { return CurrentHealth; }
+
+	UFUNCTION(BlueprintPure, Category = "Health") float GetMaxHealth() const { return MaxHealth; }
+
 public:
 
 	/** Returns CameraBoom subobject **/
@@ -98,12 +107,19 @@ public:
 	/** Returns FollowCamera subobject **/
 	FORCEINLINE class UCameraComponent* GetFollowCamera() const { return FollowCamera; }
 
-public:  //自定义参数
+public:  // 自定义参数
+
+	float CurrentHealth = 100.f;
+	float MaxHealth = 300.f;
 
 	float StartOffset = 50.f;
 	float AttackRange = 100.f;
 	float Radius = 50.f;
 	float Damage = 50.f;
+
+	float RegenTime = 3.f;   // 多少秒后开始回血
+	float RegenAmount = 10.f;   // 每秒回血量
+	float TimeSinceLastDamage = 0.f;  // 离上一次受伤隔了多久
 
 protected:
 
