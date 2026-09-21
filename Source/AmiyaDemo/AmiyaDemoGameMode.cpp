@@ -1,7 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AmiyaDemoGameMode.h"
+#include "NavigationSystem.h"
 #include "ACoinActor.h"
+#include "Kismet/GameplayStatics.h"
 
 AAmiyaDemoGameMode::AAmiyaDemoGameMode()
 {
@@ -19,8 +21,15 @@ void AAmiyaDemoGameMode::BeginPlay()
 
 void AAmiyaDemoGameMode::AddCoin()  // 拾取到了金币
 {
-	CoinCount++;
+
 	ActiveCoin--;
+
+	if (CoinCount >= CoinGoal)
+	{
+		return;
+	}
+
+	CoinCount++;
 	
 	if (CoinCount >= CoinGoal)
 	{
@@ -33,16 +42,37 @@ void AAmiyaDemoGameMode::AddCoin()  // 拾取到了金币
 
 }
 
-void AAmiyaDemoGameMode::SpawnCoin()  // 补充一枚金币
+bool AAmiyaDemoGameMode::SpawnCoin()  // 补充一枚金币
 {
-	if (ActiveCoin < MaxCoin && CoinClass)
+
+	APawn* PlayerPawn = UGameplayStatics::GetPlayerPawn(GetWorld(), 0);
+
+	UNavigationSystemV1* NavSystem = UNavigationSystemV1::GetCurrent(GetWorld());
+
+	if (!PlayerPawn || !NavSystem || !CoinClass || ActiveCoin >= MaxCoin)
 	{
-		FVector SpawnLocation = FVector(FMath::RandRange(-1000.f, 1000.f), FMath::RandRange(-1000.f, 1000.f), 100.f);
-		FRotator SpawnRotation = FRotator::ZeroRotator;
-		AACoinActor* NewCoin = GetWorld()->SpawnActor<AACoinActor>(CoinClass, SpawnLocation, SpawnRotation);
-		if (NewCoin)
+		return false;
+	}
+
+	FNavLocation RandomLocation;
+	
+	for (int32 i = 0; i < MaxSpawnAttempts; i++) // 尝试MaxSpawnAttempts次寻找随机点
+	{
+
+		bool bFoundLocation = NavSystem->GetRandomReachablePointInRadius(PlayerPawn->GetActorLocation(), CoinSpawnRadius, RandomLocation);
+
+		if (bFoundLocation)   // 如果找到了一个可达的随机点
 		{
-			ActiveCoin++;
+			FVector SpawnLocation = RandomLocation.Location;
+			SpawnLocation.Z += CoinSpawnHeight; // Adjust the Z position to be above the ground
+			FRotator SpawnRotation = FRotator::ZeroRotator;
+			AACoinActor* NewCoin = GetWorld()->SpawnActor<AACoinActor>(CoinClass, SpawnLocation, SpawnRotation);  // 目前金币生成在玩家附近
+			if (NewCoin)
+			{
+				ActiveCoin++;
+				return true;
+			}
 		}
 	}
+	return false;
 }
