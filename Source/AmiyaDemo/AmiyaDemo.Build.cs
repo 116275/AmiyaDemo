@@ -19,7 +19,8 @@ public class AmiyaDemo : ModuleRules
 			"GameplayStateTreeModule",
 			"UMG",
 			"Slate",
-            "NavigationSystem"
+            "NavigationSystem",
+            "AIModule"
         });
 
 		PrivateDependencyModuleNames.AddRange(new string[] { });
