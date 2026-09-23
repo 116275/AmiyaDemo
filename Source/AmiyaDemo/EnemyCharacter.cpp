@@ -3,6 +3,7 @@
 
 #include "EnemyCharacter.h"
 #include "GameFramework/CharacterMovementComponent.h"
+#include "Kismet/GameplayStatics.h"
 
 // Sets default values
 AEnemyCharacter::AEnemyCharacter()
@@ -47,3 +48,39 @@ float AEnemyCharacter::TakeDamage(float DamageAmount, FDamageEvent const& Damage
 	return DamageApplied;
 }
 
+void AEnemyCharacter::FireAt(AActor* Target)
+{
+	if (!Target)
+	{
+		return;
+	}
+
+	FVector Start = GetActorLocation() + FVector(0.f, 0.f, 50.f);
+
+	FVector AimPoint = Target->GetActorLocation() + FVector(0.f, 0.f, 50.f);
+
+	FVector Direction = (AimPoint - Start).GetSafeNormal();
+
+	FVector End = Start + Direction * FireRange;
+
+	FHitResult HitResult;
+
+	FCollisionQueryParams Params;
+	Params.AddIgnoredActor(this);
+
+	bool bHit = GetWorld()->LineTraceSingleByChannel(HitResult, Start, End, ECC_Visibility, Params);
+
+	FVector DebugEnd = bHit ? HitResult.ImpactPoint : End;
+
+	DrawDebugLine(GetWorld(), Start, DebugEnd, bHit ? FColor::Green : FColor::Red, false, 1.f, 0, 2.f);
+
+	if (bHit)
+	{
+		DrawDebugSphere(GetWorld(), HitResult.ImpactPoint, 10.f, 12, FColor::Yellow, false, 1.f);
+	}
+
+	if (bHit && HitResult.GetActor())
+	{
+		UGameplayStatics::ApplyDamage(HitResult.GetActor(), Damage, GetController(), this, UDamageType::StaticClass());
+	}
+}

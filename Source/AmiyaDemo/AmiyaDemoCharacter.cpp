@@ -193,5 +193,10 @@ float AAmiyaDemoCharacter::TakeDamage(float DamageAmount, FDamageEvent const& Da
 
 	TimeSinceLastDamage = 0;
 
+	if (CurrentHealth <= 0)
+	{
+		Destroy();
+	}
+
 	return ActualDamage;
 }

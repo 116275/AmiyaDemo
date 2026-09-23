@@ -30,8 +30,16 @@ private:
 	UPROPERTY(EditAnywhere, Category = "Health")
 	float MaxHealth = 100.0f;
 
+	float FireRange = 1200.f;
+
+	float FireInterval = 1.f;
+
+	float Damage = 20.f;
+
 public:
 
 	virtual float TakeDamage(float DamageAmount, struct FDamageEvent const& DamageEvent, class AController* EventInstigator, AActor* DamageCauser) override;
+
+	void FireAt(AActor* Target);
 
 };

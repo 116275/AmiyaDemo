@@ -15,5 +15,28 @@ class AMIYADEMO_API AEnemyAIController : public AAIController
 private:
 	virtual void OnPossess(APawn* InPawn) override;
 
-	void StartChase();
+	FTimerHandle ChaseUpdateTimer;
+
+	/*float StopDistance = 300.f;*/
+
+	float ChaseUpdateInterval = 0.2f;
+
+	float ResumeChaseDistance = 1000.f;
+
+	void UpdateChase();
+
+	float StartFireDistance = 800.f;
+
+	void StartFire();
+
+	void StopFire();
+
+	void FireOnce();
+
+	float FireInterval = 1.f;
+
+	float AcceptDistance = 700.f;
+
+	FTimerHandle FireTimer;
+
 };
