@@ -4,6 +4,7 @@
 #include "EnemyCharacter.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Kismet/GameplayStatics.h"
+#include "AmiyaDemoGameMode.h"
 
 // Sets default values
 AEnemyCharacter::AEnemyCharacter()
@@ -43,6 +44,12 @@ float AEnemyCharacter::TakeDamage(float DamageAmount, FDamageEvent const& Damage
 	if (CurrentHealth <= 0.0f)
 	{
 		// Handle character death
+		AAmiyaDemoGameMode* CurrentGameMode = Cast<AAmiyaDemoGameMode>(GetWorld()->GetAuthGameMode());
+
+		if (CurrentGameMode)
+		{
+			CurrentGameMode->AddKill();
+		}
 		Destroy();
 	}
 	return DamageApplied;

@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/GameModeBase.h"
+#include "EnemyCharacter.h"
 #include "AmiyaDemoGameMode.generated.h"
 
 class AACoinActor;
@@ -21,6 +22,9 @@ private:
 	int32 ActiveCoin = 0;   // 场上存在几枚
 	int32 MaxCoin = 5;   // 场上最多存在几枚
 	int32 CoinGoal = 20;  // 目标是捡几枚
+
+	int32 KillCount = 0;
+	int32 KillGoal = 10;
 
 public:
 
@@ -48,6 +52,40 @@ public:
 		return CoinGoal;
 	}
 
+	UFUNCTION(BlueprintPure, Category = "Kill")
+	int32 GetKillCount()
+	{
+		return KillCount;
+	}
+
+	UFUNCTION(BlueprintPure, Category = "Kill")
+	int32 GetKillGoal()
+	{
+		return KillGoal;
+	}
+
+	UPROPERTY(EditAnywhere, Category = "Enemy Spawn")
+	TSubclassOf<AEnemyCharacter> EnemyClass;
+
+	UPROPERTY(EditAnywhere, Category = "Enemy Spawn")
+	int32 MaxActiveEnemies = 5;
+
+	int32 ActiveEnemies = 0;
+
+	bool SpawnEnemy();
+
+	UPROPERTY(EditAnywhere, Category = "Enemy Spawn")
+	FVector EnemySpawnCenter = FVector::ZeroVector;
+
+	UPROPERTY(EditAnywhere, Category = "Enemy Spawn")  // 足够大以覆盖地图
+	float EnemySpawnRadius = 5000.f;
+
+	UPROPERTY(EditAnywhere, Category = "Enemy Spawn")
+	float SafeEnemySpawnDistance = 300.f;
+
+	UPROPERTY(EditAnywhere, Category = "Enemy Spawn")
+	int32 MaxEnemySpawnAttempts = 5;
+
 public:
 	
 	/** Constructor */
@@ -56,6 +94,8 @@ public:
 	void AddCoin();
 
 	bool SpawnCoin();
+
+	void AddKill();
 
 };
 
