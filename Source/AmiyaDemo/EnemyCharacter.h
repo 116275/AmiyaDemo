@@ -34,7 +34,7 @@ private:
 
 	float FireInterval = 1.f;
 
-	float Damage = 20.f;
+	float Damage = 5.f;
 
 public:
 

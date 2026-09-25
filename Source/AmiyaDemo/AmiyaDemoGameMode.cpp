@@ -7,6 +7,8 @@
 #include "Engine/Engine.h"
 #include "DrawDebugHelpers.h"
 #include "Components/CapsuleComponent.h"
+#include "EnemySpawnVolume.h"
+#include "TimerManager.h"
 
 AAmiyaDemoGameMode::AAmiyaDemoGameMode()
 {
@@ -24,16 +26,6 @@ void AAmiyaDemoGameMode::BeginPlay()
 	{
 		SpawnEnemy();
 	}
-
-	DrawDebugSphere(
-		GetWorld(),
-		EnemySpawnCenter,
-		1000.f,
-		24,
-		FColor::Red,
-		true
-	);
-
 }
 
 void AAmiyaDemoGameMode::AddCoin()  // 拾取到了金币
@@ -102,8 +94,49 @@ void AAmiyaDemoGameMode::AddKill()
 	if (KillCount < KillGoal)
 	{
 		KillCount++;
-		SpawnEnemy();
+
+		// 5.0s后补充敌人
+		StartEnemyRefill();
 	}
+}
+
+void AAmiyaDemoGameMode::StartEnemyRefill()
+{
+	if (GetWorld()->GetTimerManager().IsTimerActive(EnemyRefillTimer))
+	{
+		return;
+	}
+
+	GetWorld()->GetTimerManager().SetTimer(EnemyRefillTimer, this, &AAmiyaDemoGameMode::TryRefillEnemy, EnemyRefillInterval, true);
+}
+
+void AAmiyaDemoGameMode::TryRefillEnemy()
+{
+	const int RemainingKills = KillGoal - KillCount;
+	const int DesiredKills = FMath::Min(MaxActiveEnemies, RemainingKills);
+
+	if (GEngine)
+	{
+		GEngine->AddOnScreenDebugMessage(
+			-1,
+			1.f,
+			FColor::Yellow,
+			FString::Printf(
+				TEXT("Kills=%d Active=%d Desired=%d"),
+				KillCount,
+				ActiveEnemies,
+				DesiredKills
+			)
+		);
+	}
+
+	if (ActiveEnemies >= DesiredKills)
+	{
+		GetWorld()->GetTimerManager().ClearTimer(EnemyRefillTimer);
+		return;
+	}
+
+	SpawnEnemy();
 }
 
 bool AAmiyaDemoGameMode::SpawnEnemy()  // 整张地图范围刷新但不在玩家周围
@@ -118,93 +151,47 @@ bool AAmiyaDemoGameMode::SpawnEnemy()  // 整张地图范围刷新但不在玩家周围
 
 	UNavigationSystemV1* NavSystem = UNavigationSystemV1::GetCurrent(GetWorld());
 
-	if (!PlayerPawn || !NavSystem)
+	AEnemySpawnVolume* SpawnVolume = Cast<AEnemySpawnVolume>(UGameplayStatics::GetActorOfClass(GetWorld(), AEnemySpawnVolume::StaticClass()));
+
+	if (!PlayerPawn || !SpawnVolume)
 	{
 		return false;
 	}
 
 	for (int i = 0; i < MaxEnemySpawnAttempts; i++)
 	{
-		FNavLocation RandomLocation;
+		FVector RandomLocation = SpawnVolume->GetRandomPoint();
 
-		bool bFoundLocation = NavSystem->GetRandomReachablePointInRadius(EnemySpawnCenter, EnemySpawnRadius, RandomLocation);
+		FNavLocation NavLocation;
+
+		bool bFoundLocation = NavSystem->ProjectPointToNavigation(RandomLocation, NavLocation, FVector(100.f, 100.f, 200.f));
 
 		if (!bFoundLocation)
 		{
 			continue;
 		}
 
-		const float DistanceToPlayer = FVector::Dist(RandomLocation.Location, PlayerPawn->GetActorLocation());
-
-		if (GEngine)
-		{
-			GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Purple, FString::Printf(TEXT("Now: %.0f"), DistanceToPlayer));
-		}
+		const float DistanceToPlayer = FVector::Dist(NavLocation.Location, PlayerPawn->GetActorLocation());
 
 		if (DistanceToPlayer < SafeEnemySpawnDistance)
 		{
 			continue;
 		}
 
-		///
+		const AEnemyCharacter* EnemyDefault = EnemyClass->GetDefaultObject<AEnemyCharacter>();  
+		// 通过获取 CDO，可以在没有任何实体真正存在于游戏世界中的情况下，直接读取该蓝图里配置好的默认属性
 
-		const AEnemyCharacter* EnemyDefault =
-			EnemyClass->GetDefaultObject<AEnemyCharacter>();
+		const float CapsuleHalfHeight = EnemyDefault->GetCapsuleComponent()->GetScaledCapsuleHalfHeight();
 
-		const float CapsuleHalfHeight =
-			EnemyDefault->GetCapsuleComponent()->GetScaledCapsuleHalfHeight();
-
-		///
-
-		FVector SpawnLocation = RandomLocation.Location;
-		SpawnLocation.Z += CapsuleHalfHeight;
-
-		DrawDebugSphere(
-			GetWorld(),
-			RandomLocation.Location,
-			500.f,
-			24,
-			FColor::Yellow,
-			true
-		);
+		FVector SpawnLocation = NavLocation.Location;
+		SpawnLocation.Z += CapsuleHalfHeight + 5.f;      // 调整生成位置，防止敌人卡在地里
 
 		const FRotator SpawnRotation = FRotator::ZeroRotator;
-
-		///
-
-		if (GEngine)
-		{
-			GEngine->AddOnScreenDebugMessage(
-				-1,
-				10.f,
-				FColor::Yellow,
-				FString::Printf(
-					TEXT("Spawn: X=%.0f Y=%.0f Z=%.0f"),
-					SpawnLocation.X,
-					SpawnLocation.Y,
-					SpawnLocation.Z
-				)
-			);
-
-			GEngine->AddOnScreenDebugMessage(
-				-1,
-				10.f,
-				FColor::Cyan,
-				FString::Printf(
-					TEXT("Player: X=%.0f Y=%.0f Z=%.0f"),
-					PlayerPawn->GetActorLocation().X,
-					PlayerPawn->GetActorLocation().Y,
-					PlayerPawn->GetActorLocation().Z
-				)
-			);
-		}
 
 		FActorSpawnParameters SpawnParams;
 
 		SpawnParams.SpawnCollisionHandlingOverride =
 			ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButDontSpawnIfColliding;
-
-		///
 
 		AEnemyCharacter* NewEnemy = GetWorld()->SpawnActor<AEnemyCharacter>(EnemyClass, SpawnLocation, SpawnRotation, SpawnParams);
 
@@ -213,13 +200,6 @@ bool AAmiyaDemoGameMode::SpawnEnemy()  // 整张地图范围刷新但不在玩家周围
 			ActiveEnemies++;
 
 			return true;
-		}
-		else
-		{
-			if (GEngine)
-			{
-				GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Blue, TEXT("Fail! Again!"));
-			}
 		}
 	}
 	return false;

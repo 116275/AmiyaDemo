@@ -7,6 +7,14 @@
 #include "EnemyCharacter.h"
 #include "DrawDebugHelpers.h"
 
+enum class EEnemyCombatState
+{
+	Chasing,
+	Firing
+};
+
+EEnemyCombatState CombatState = EEnemyCombatState::Chasing;
+
 void AEnemyAIController::OnPossess(APawn* InPawn)
 {
 	Super::OnPossess(InPawn);
@@ -25,15 +33,30 @@ void AEnemyAIController::UpdateChase()
 
 	float DistanceToPlayer = FVector::Dist(GetPawn()->GetActorLocation(), PlayerPawn->GetActorLocation());
 
-	if (DistanceToPlayer >= ResumeChaseDistance)   // 1000
+
+	if (CombatState == EEnemyCombatState::Chasing)
 	{
-		StopFire();
-		MoveToActor(PlayerPawn, AcceptDistance, false);
+		if (DistanceToPlayer <= StartFireDistance)
+		{
+			StopMovement();
+			StartFire();
+
+			CombatState = EEnemyCombatState::Firing;
+		}
+		else
+		{
+			MoveToActor(PlayerPawn, AcceptDistance, false);
+		}
 	}
-	else if (DistanceToPlayer <= StartFireDistance)   // 800
+	else
 	{
-		StopMovement();
-		StartFire();
+		if (DistanceToPlayer >= ResumeChaseDistance)
+		{
+			StopFire();
+			MoveToActor(PlayerPawn, AcceptDistance, false);
+
+			CombatState = EEnemyCombatState::Chasing;
+		}
 	}
 }
 

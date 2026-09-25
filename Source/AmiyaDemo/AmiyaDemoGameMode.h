@@ -68,7 +68,7 @@ public:
 	TSubclassOf<AEnemyCharacter> EnemyClass;
 
 	UPROPERTY(EditAnywhere, Category = "Enemy Spawn")
-	int32 MaxActiveEnemies = 5;
+	int32 MaxActiveEnemies = 3;
 
 	int32 ActiveEnemies = 0;
 
@@ -81,10 +81,15 @@ public:
 	float EnemySpawnRadius = 5000.f;
 
 	UPROPERTY(EditAnywhere, Category = "Enemy Spawn")
-	float SafeEnemySpawnDistance = 300.f;
+	float SafeEnemySpawnDistance = 1000.f;
 
 	UPROPERTY(EditAnywhere, Category = "Enemy Spawn")
-	int32 MaxEnemySpawnAttempts = 5;
+	int32 MaxEnemySpawnAttempts = 30;
+
+	FTimerHandle EnemyRefillTimer;
+
+	UPROPERTY(EditAnywhere, Category = "Enemy Spawn")
+	float EnemyRefillInterval = 3.5f;
 
 public:
 	
@@ -96,6 +101,10 @@ public:
 	bool SpawnCoin();
 
 	void AddKill();
+
+	void StartEnemyRefill();
+
+	void TryRefillEnemy();
 
 };
 
