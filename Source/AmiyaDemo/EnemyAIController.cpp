@@ -7,17 +7,11 @@
 #include "EnemyCharacter.h"
 #include "DrawDebugHelpers.h"
 
-enum class EEnemyCombatState
-{
-	Chasing,
-	Firing
-};
-
-EEnemyCombatState CombatState = EEnemyCombatState::Chasing;
-
 void AEnemyAIController::OnPossess(APawn* InPawn)
 {
 	Super::OnPossess(InPawn);
+
+	CombatState = EEnemyCombatState::Chasing;  // 明确初始化状态
 
 	GetWorld()->GetTimerManager().SetTimer(ChaseUpdateTimer, this, &AEnemyAIController::UpdateChase, ChaseUpdateInterval, true);
 }
@@ -48,7 +42,7 @@ void AEnemyAIController::UpdateChase()
 			MoveToActor(PlayerPawn, AcceptDistance, false);
 		}
 	}
-	else
+	else if (CombatState == EEnemyCombatState::Firing)
 	{
 		if (DistanceToPlayer >= ResumeChaseDistance)
 		{

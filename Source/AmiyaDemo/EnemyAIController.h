@@ -6,6 +6,11 @@
 #include "AIController.h"
 #include "EnemyAIController.generated.h"
 
+enum class EEnemyCombatState
+{
+	Chasing,
+	Firing
+};
 
 UCLASS()
 class AMIYADEMO_API AEnemyAIController : public AAIController
@@ -16,8 +21,6 @@ private:
 	virtual void OnPossess(APawn* InPawn) override;
 
 	FTimerHandle ChaseUpdateTimer;
-
-	/*float StopDistance = 300.f;*/
 
 	float ChaseUpdateInterval = 0.2f;
 
@@ -38,5 +41,7 @@ private:
 	float AcceptDistance = 700.f;
 
 	FTimerHandle FireTimer;
+
+	EEnemyCombatState CombatState = EEnemyCombatState::Chasing;
 
 };

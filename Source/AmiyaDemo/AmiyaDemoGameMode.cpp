@@ -18,14 +18,18 @@ AAmiyaDemoGameMode::AAmiyaDemoGameMode()
 void AAmiyaDemoGameMode::BeginPlay()
 {
 	Super::BeginPlay();
+
 	for (int i = 0; i < MaxCoin; i++)
 	{
 		SpawnCoin();
 	}
+
 	for (int i = 0; i < MaxActiveEnemies; i++)
 	{
 		SpawnEnemy();
 	}
+
+	StartEnemyRefill();
 }
 
 void AAmiyaDemoGameMode::AddCoin()  // 拾取到了金币
