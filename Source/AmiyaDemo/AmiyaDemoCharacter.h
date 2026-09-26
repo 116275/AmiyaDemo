@@ -50,7 +50,21 @@ protected:  //暴露给编辑器的输入相关属性
 	UPROPERTY(EditAnywhere, Category="Input")
 	UInputAction* MouseLookAction;
 
-	UPROPERTY(EditAnywhere, Category = "Input") UInputAction* AttackAction;
+	UPROPERTY(EditAnywhere, Category = "Input")
+	UInputAction* AttackAction;
+
+	UPROPERTY(EditAnywhere, Category = "Input")
+	UInputAction* SprintAction;
+
+	UPROPERTY(EditAnywhere, Category = "Move")
+	float WalkSpeed = 500.f;
+
+	UPROPERTY(EditAnywhere, Category = "Move")
+	float SprintSpeed = 800.f;
+
+	void StartSprint();
+
+	void StopSprint();
 
 public:
 

@@ -119,21 +119,6 @@ void AAmiyaDemoGameMode::TryRefillEnemy()
 	const int RemainingKills = KillGoal - KillCount;
 	const int DesiredKills = FMath::Min(MaxActiveEnemies, RemainingKills);
 
-	if (GEngine)
-	{
-		GEngine->AddOnScreenDebugMessage(
-			-1,
-			1.f,
-			FColor::Yellow,
-			FString::Printf(
-				TEXT("Kills=%d Active=%d Desired=%d"),
-				KillCount,
-				ActiveEnemies,
-				DesiredKills
-			)
-		);
-	}
-
 	if (ActiveEnemies >= DesiredKills)
 	{
 		GetWorld()->GetTimerManager().ClearTimer(EnemyRefillTimer);

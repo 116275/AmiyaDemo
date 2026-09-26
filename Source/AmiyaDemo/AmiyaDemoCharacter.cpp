@@ -34,7 +34,7 @@ AAmiyaDemoCharacter::AAmiyaDemoCharacter()
 	// instead of recompiling to adjust them
 	GetCharacterMovement()->JumpZVelocity = 500.f;
 	GetCharacterMovement()->AirControl = 1.f;
-	GetCharacterMovement()->MaxWalkSpeed = 500.f;
+	GetCharacterMovement()->MaxWalkSpeed = WalkSpeed;
 	GetCharacterMovement()->MinAnalogWalkSpeed = 20.f;
 	GetCharacterMovement()->BrakingDecelerationWalking = 2000.f;
 	GetCharacterMovement()->BrakingDecelerationFalling = 1500.0f;
@@ -72,6 +72,12 @@ void AAmiyaDemoCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInput
 
 		// Attack
 		EnhancedInputComponent->BindAction(AttackAction, ETriggerEvent::Started, this, &AAmiyaDemoCharacter::Attack);
+
+		// Sprint
+		EnhancedInputComponent->BindAction(SprintAction, ETriggerEvent::Started, this, &AAmiyaDemoCharacter::StartSprint);
+		EnhancedInputComponent->BindAction(SprintAction, ETriggerEvent::Completed, this, &AAmiyaDemoCharacter::StopSprint);
+		EnhancedInputComponent->BindAction(SprintAction, ETriggerEvent::Canceled, this, &AAmiyaDemoCharacter::StopSprint);
+		// ·ÀÖ¹ÒâÍâÍË³ö
 	}
 	else
 	{
@@ -199,4 +205,14 @@ float AAmiyaDemoCharacter::TakeDamage(float DamageAmount, FDamageEvent const& Da
 	}
 
 	return ActualDamage;
+}
+
+void AAmiyaDemoCharacter::StartSprint()
+{
+	GetCharacterMovement()->MaxWalkSpeed = SprintSpeed;
+}
+
+void AAmiyaDemoCharacter::StopSprint()
+{
+	GetCharacterMovement()->MaxWalkSpeed = WalkSpeed;
 }
