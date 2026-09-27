@@ -15,6 +15,8 @@ class UAnimMontage;
 
 DECLARE_LOG_CATEGORY_EXTERN(LogTemplateCharacter, Log, All);
 
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnEnergyChanged, int32, NewEnergy);
+
 /**
  *  A simple player-controllable third person character
  *  Implements a controllable orbiting camera
@@ -23,6 +25,8 @@ UCLASS(abstract)
 class AAmiyaDemoCharacter : public ACharacter
 {
 	GENERATED_BODY()
+
+	virtual void BeginPlay() override;
 
 	/** Camera boom positioning the camera behind the character */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Components", meta = (AllowPrivateAccess = "true"))
@@ -121,7 +125,7 @@ public:
 	/** Returns FollowCamera subobject **/
 	FORCEINLINE class UCameraComponent* GetFollowCamera() const { return FollowCamera; }
 
-public:  // 自定义参数
+private:  // 自定义参数
 
 	float CurrentHealth = 100.f;
 	float MaxHealth = 300.f;
@@ -135,8 +139,43 @@ public:  // 自定义参数
 	float RegenAmount = 10.f;   // 每秒回血量
 	float TimeSinceLastDamage = 0.f;  // 离上一次受伤隔了多久
 
-protected:
+	UPROPERTY(EditAnywhere, Category = "Energy")
+	int32 MaxEnergy = 8;
 
-	UPROPERTY(EditAnywhere, Category = "Combat") UAnimMontage* AttackMontage = nullptr;
+	int32 CurrentEnergy = 0;
+	int32 EnermyRegen = 1;
+
+	UPROPERTY(EditAnywhere, Category = "Energy")
+	float EnergyRegenInterval = 5.f;
+
+	FTimerHandle EnergyRegenTimer;
+
+private:
+
+	UPROPERTY(EditAnywhere, Category = "Combat")
+	UAnimMontage* AttackMontage = nullptr;
+
+	UFUNCTION(BlueprintPure, Category = "Energy")
+	int32 GetCurrentEnermy() const
+	{
+		return CurrentEnergy;
+	}
+
+	UFUNCTION(BlueprintPure, Category = "Energy")
+	int32 GetMaxEnermy() const
+	{
+		return MaxEnergy;
+	}
+
+	void RegenEnergy();  // 自然恢复能量
+
+	void AddEnergy(int32 Amount);  // 格挡成功恢复能量
+
+	bool ConsumeEnergy(int32 cost);  // 花费能量升级技能
+
+public:
+
+	UPROPERTY(BlueprintAssignable, Category = "Energy")
+	FOnEnergyChanged OnEnergyChanged;
 };
 

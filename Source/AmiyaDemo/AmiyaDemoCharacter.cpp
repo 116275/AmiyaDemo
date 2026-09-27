@@ -54,6 +54,13 @@ AAmiyaDemoCharacter::AAmiyaDemoCharacter()
 	// are set in the derived blueprint asset named ThirdPersonCharacter (to avoid direct content references in C++)
 }
 
+void AAmiyaDemoCharacter::BeginPlay()
+{
+	Super::BeginPlay();
+
+	GetWorld()->GetTimerManager().SetTimer(EnergyRegenTimer, this, &AAmiyaDemoCharacter::RegenEnergy, EnergyRegenInterval, true);
+}
+
 void AAmiyaDemoCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
 {
 	// Set up action bindings
@@ -215,4 +222,32 @@ void AAmiyaDemoCharacter::StartSprint()
 void AAmiyaDemoCharacter::StopSprint()
 {
 	GetCharacterMovement()->MaxWalkSpeed = WalkSpeed;
+}
+
+void AAmiyaDemoCharacter::RegenEnergy()
+{
+	AddEnergy(1);
+}
+
+void AAmiyaDemoCharacter::AddEnergy(int32 Amount)
+{
+	CurrentEnergy = FMath::Clamp(CurrentEnergy + Amount, 0, MaxEnergy);
+
+	OnEnergyChanged.Broadcast(CurrentEnergy);
+}
+
+bool AAmiyaDemoCharacter::ConsumeEnergy(int32 cost)
+{
+	if (cost >= 0 && CurrentEnergy >= cost)
+	{
+		CurrentEnergy -= cost;
+
+		OnEnergyChanged.Broadcast(CurrentEnergy);
+
+		return true;
+	}
+	else
+	{
+		return false;
+	}
 }
