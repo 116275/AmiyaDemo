@@ -60,6 +60,9 @@ protected:  //暴露给编辑器的输入相关属性
 	UPROPERTY(EditAnywhere, Category = "Input")
 	UInputAction* SprintAction;
 
+	UPROPERTY(EditAnywhere, Category = "Input")
+	UInputAction* ParryAction;
+
 	UPROPERTY(EditAnywhere, Category = "Move")
 	float WalkSpeed = 500.f;
 
@@ -149,6 +152,22 @@ private:  // 自定义参数
 	float EnergyRegenInterval = 5.f;
 
 	FTimerHandle EnergyRegenTimer;
+
+	UPROPERTY(EditAnywhere, Category = "Parry")
+	float ParryDuration = 2.f;
+
+	UPROPERTY(EditAnywhere, Category = "Parry")
+	float PerfectParryDuration = 0.2f;
+
+	bool bIsParrying = false;
+	bool bIsPerfectParrying = false;
+
+	FTimerHandle ParryTimer;
+	FTimerHandle PerfectParryTimer;
+
+	void StartParry();
+	void EndParry();
+	void EndPerfectParry();
 
 private:
 

@@ -15,6 +15,7 @@
 #include "GameFramework/DamageType.h"
 #include "DrawDebugHelpers.h"
 #include "Animation/AnimMontage.h"
+#include "Engine/Engine.h"
 
 AAmiyaDemoCharacter::AAmiyaDemoCharacter()
 {
@@ -85,6 +86,9 @@ void AAmiyaDemoCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInput
 		EnhancedInputComponent->BindAction(SprintAction, ETriggerEvent::Completed, this, &AAmiyaDemoCharacter::StopSprint);
 		EnhancedInputComponent->BindAction(SprintAction, ETriggerEvent::Canceled, this, &AAmiyaDemoCharacter::StopSprint);
 		// 防止意外退出
+
+		// Parry
+		EnhancedInputComponent->BindAction(ParryAction, ETriggerEvent::Started, this, &AAmiyaDemoCharacter::StartParry);
 	}
 	else
 	{
@@ -114,6 +118,12 @@ void AAmiyaDemoCharacter::DoMove(float Right, float Forward)
 {
 	if (GetController() != nullptr)
 	{
+
+		if (bIsParrying && (!FMath::IsNearlyZero(Right) || !FMath::IsNearlyZero(Forward)))
+		{
+			EndParry();
+		}
+
 		// find out which way is forward
 		const FRotator Rotation = GetController()->GetControlRotation();
 		const FRotator YawRotation(0, Rotation.Yaw, 0);
@@ -202,6 +212,19 @@ float AAmiyaDemoCharacter::TakeDamage(float DamageAmount, FDamageEvent const& Da
 		return 0.f;
 	}
 
+	if (bIsParrying)
+	{
+		if (bIsPerfectParrying)
+		{
+			AddEnergy(2);
+			EndParry();
+
+			return 0.f;
+		}
+		
+		ActualDamage *= 0.5;
+	}
+
 	CurrentHealth = FMath::Clamp(CurrentHealth - ActualDamage, 0.f, MaxHealth);
 
 	TimeSinceLastDamage = 0;
@@ -250,4 +273,52 @@ bool AAmiyaDemoCharacter::ConsumeEnergy(int32 cost)
 	{
 		return false;
 	}
+}
+
+void AAmiyaDemoCharacter::StartParry()
+{
+	if (bIsParrying)
+	{
+		return;
+	}
+
+	if (GEngine)
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Purple, TEXT("Parry is Started!"));
+	}
+
+	bIsParrying = true;
+	bIsPerfectParrying = true;
+
+	GetWorld()->GetTimerManager().SetTimer(PerfectParryTimer, this, &AAmiyaDemoCharacter::EndPerfectParry, PerfectParryDuration, false);
+
+	GetWorld()->GetTimerManager().SetTimer(ParryTimer, this, &AAmiyaDemoCharacter::EndParry, ParryDuration, false);
+
+}
+
+void AAmiyaDemoCharacter::EndParry()  // 负责防反收尾
+{
+
+	if (GEngine)
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, TEXT("Parry is End!"));
+	}
+
+	bIsParrying = false;
+	bIsPerfectParrying = false;
+
+	GetWorld()->GetTimerManager().ClearTimer(PerfectParryTimer);
+	GetWorld()->GetTimerManager().ClearTimer(ParryTimer);
+}
+
+void AAmiyaDemoCharacter::EndPerfectParry()  // 负责防反收尾
+{
+	if (GEngine)
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Blue, TEXT("PerfectParry is End!"));
+	}
+
+	bIsPerfectParrying = false;
+
+	GetWorld()->GetTimerManager().ClearTimer(PerfectParryTimer);
 }
