@@ -51,6 +51,13 @@ void AEnemyAIController::UpdateChase()
 
 			CombatState = EEnemyCombatState::Chasing;
 		}
+		else
+		{
+			if (GetWorld()->GetTimerManager().IsTimerActive(FireTimer))
+			{
+				StartFire();
+			}
+		}
 	}
 }
 

@@ -59,6 +59,11 @@ void AAmiyaDemoCharacter::BeginPlay()
 {
 	Super::BeginPlay();
 
+	if (FollowCamera)
+	{
+		DefaultFOV = FollowCamera->FieldOfView;
+	}
+
 	GetWorld()->GetTimerManager().SetTimer(EnergyRegenTimer, this, &AAmiyaDemoCharacter::RegenEnergy, EnergyRegenInterval, true);
 }
 
@@ -88,7 +93,7 @@ void AAmiyaDemoCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInput
 		// 防止意外退出
 
 		// Parry
-		EnhancedInputComponent->BindAction(ParryAction, ETriggerEvent::Started, this, &AAmiyaDemoCharacter::StartParry);
+		EnhancedInputComponent->BindAction(ParryAction, ETriggerEvent::Started, this, &AAmiyaDemoCharacter::StartParryState);
 	}
 	else
 	{
@@ -121,7 +126,7 @@ void AAmiyaDemoCharacter::DoMove(float Right, float Forward)
 
 		if (bIsParrying && (!FMath::IsNearlyZero(Right) || !FMath::IsNearlyZero(Forward)))
 		{
-			EndParry();
+			EndParryState();
 		}
 
 		// find out which way is forward
@@ -175,6 +180,11 @@ void AAmiyaDemoCharacter::Tick(float Delta)
 void AAmiyaDemoCharacter::Attack()
 {
 
+	if (bIsParrying)
+	{
+		EndParryState();
+	}
+
 	FVector ActorLocal = AAmiyaDemoCharacter::GetActorLocation();
 	FVector Forward = AAmiyaDemoCharacter::GetActorForwardVector();
 	FVector Start = ActorLocal + Forward * StartOffset;
@@ -217,7 +227,11 @@ float AAmiyaDemoCharacter::TakeDamage(float DamageAmount, FDamageEvent const& Da
 		if (bIsPerfectParrying)
 		{
 			AddEnergy(2);
+
 			EndParry();
+			ParryCooldownCleared();
+
+			StartPerfectParryFeedback();
 
 			return 0.f;
 		}
@@ -261,7 +275,7 @@ void AAmiyaDemoCharacter::AddEnergy(int32 Amount)
 
 bool AAmiyaDemoCharacter::ConsumeEnergy(int32 cost)
 {
-	if (cost >= 0 && CurrentEnergy >= cost)
+	if (cost > 0 && CurrentEnergy >= cost)
 	{
 		CurrentEnergy -= cost;
 
@@ -275,16 +289,16 @@ bool AAmiyaDemoCharacter::ConsumeEnergy(int32 cost)
 	}
 }
 
-void AAmiyaDemoCharacter::StartParry()
+void AAmiyaDemoCharacter::StartParryState()
 {
-	if (bIsParrying)
+	if (bIsParrying || bIsParryOnCooldown)
 	{
 		return;
 	}
 
-	if (GEngine)
+	if (ParryMontage)
 	{
-		GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Purple, TEXT("Parry is Started!"));
+		PlayAnimMontage(ParryMontage);
 	}
 
 	bIsParrying = true;
@@ -292,33 +306,84 @@ void AAmiyaDemoCharacter::StartParry()
 
 	GetWorld()->GetTimerManager().SetTimer(PerfectParryTimer, this, &AAmiyaDemoCharacter::EndPerfectParry, PerfectParryDuration, false);
 
-	GetWorld()->GetTimerManager().SetTimer(ParryTimer, this, &AAmiyaDemoCharacter::EndParry, ParryDuration, false);
+	GetWorld()->GetTimerManager().SetTimer(ParryTimer, this, &AAmiyaDemoCharacter::EndParryState, ParryDuration, false);
 
 }
 
 void AAmiyaDemoCharacter::EndParry()  // 负责防反收尾
 {
-
-	if (GEngine)
-	{
-		GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, TEXT("Parry is End!"));
-	}
-
 	bIsParrying = false;
 	bIsPerfectParrying = false;
 
 	GetWorld()->GetTimerManager().ClearTimer(PerfectParryTimer);
 	GetWorld()->GetTimerManager().ClearTimer(ParryTimer);
+
+	if (ParryMontage)
+	{
+		StopAnimMontage(ParryMontage);
+	}
 }
 
 void AAmiyaDemoCharacter::EndPerfectParry()  // 负责防反收尾
 {
-	if (GEngine)
-	{
-		GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Blue, TEXT("PerfectParry is End!"));
-	}
-
 	bIsPerfectParrying = false;
 
 	GetWorld()->GetTimerManager().ClearTimer(PerfectParryTimer);
+}
+
+void AAmiyaDemoCharacter::StartPerfectParryFeedback()
+{
+	FollowCamera->SetFieldOfView(PerfectParryFOV);
+
+	UGameplayStatics::SetGlobalTimeDilation(GetWorld(), PerfectParrySlowFactor);
+
+	GetWorld()->GetTimerManager().SetTimer(PerfectParryFeedbackTimer, this, &AAmiyaDemoCharacter::EndPerfectParryFeedback, HighLightDuration * PerfectParrySlowFactor, false);
+}
+
+void AAmiyaDemoCharacter::EndPerfectParryFeedback()
+{
+	FollowCamera->SetFieldOfView(DefaultFOV);
+
+	UGameplayStatics::SetGlobalTimeDilation(GetWorld(), 1.f);
+}
+
+void AAmiyaDemoCharacter::EndParryState()  // 总的负责收尾
+{
+	if (!bIsParrying)
+	{
+		return;
+	}
+
+	EndParry();
+	StartParryCooldown();
+}
+
+void AAmiyaDemoCharacter::StartParryCooldown()
+{
+	bIsParryOnCooldown = true;
+
+	GetWorld()->GetTimerManager().SetTimer(ParryCooldownTimer, this, &AAmiyaDemoCharacter::EndParryCooldown, ParryCooldown, false);
+}
+
+void AAmiyaDemoCharacter::EndParryCooldown()
+{
+	bIsParryOnCooldown = false;
+}
+
+void AAmiyaDemoCharacter::ParryCooldownCleared()
+{
+	GetWorld()->GetTimerManager().ClearTimer(ParryCooldownTimer);
+	bIsParryOnCooldown = false;
+}
+
+float AAmiyaDemoCharacter::GetParryCooldownPercent() const
+{
+	if (!GetWorld() || !bIsParryOnCooldown)
+	{
+		return 0.f;
+	}
+
+	const float RemainingTime = GetWorld()->GetTimerManager().GetTimerRemaining(ParryCooldownTimer);
+
+	return FMath::Clamp(RemainingTime / ParryCooldown, 0.f, 1.f);
 }

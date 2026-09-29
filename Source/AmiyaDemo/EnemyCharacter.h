@@ -42,4 +42,16 @@ public:
 
 	void FireAt(AActor* Target);
 
+	UFUNCTION(BlueprintPure, Category = "Health")
+	float GetCurrentHealth() const
+	{
+		return CurrentHealth;
+	}
+
+	UFUNCTION(BlueprintPure, Category = "Health")
+	float GetMaxHealth() const
+	{
+		return MaxHealth;
+	}
+
 };

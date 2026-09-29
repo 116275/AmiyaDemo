@@ -5,13 +5,16 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Character.h"
 #include "Logging/LogMacros.h"
+#include "Camera/CameraComponent.h"
 #include "AmiyaDemoCharacter.generated.h"
+
 
 class USpringArmComponent;
 class UCameraComponent;
 class UInputAction;
 struct FInputActionValue;
 class UAnimMontage;
+class UCameraComponent;
 
 DECLARE_LOG_CATEGORY_EXTERN(LogTemplateCharacter, Log, All);
 
@@ -146,7 +149,7 @@ private:  // 自定义参数
 	int32 MaxEnergy = 8;
 
 	int32 CurrentEnergy = 0;
-	int32 EnermyRegen = 1;
+	int32 EnergyRegen = 1;
 
 	UPROPERTY(EditAnywhere, Category = "Energy")
 	float EnergyRegenInterval = 5.f;
@@ -165,23 +168,63 @@ private:  // 自定义参数
 	FTimerHandle ParryTimer;
 	FTimerHandle PerfectParryTimer;
 
-	void StartParry();
 	void EndParry();
+	void StartParryState();
+	void EndParryState();
 	void EndPerfectParry();
 
-private:
+	UPROPERTY(EditAnywhere, Category = "Parry Feedback")
+	float PerfectParryFOV = 65.f;
+
+	UPROPERTY(EditAnywhere, Category = "Parry Feedback")
+	float PerfectParrySlowFactor = 0.2f;
+
+	UPROPERTY(EditAnywhere, Category = "Parry Feedback")
+	float HighLightDuration = 1.f;
+
+	float DefaultFOV = 0.f;
+
+	FTimerHandle PerfectParryFeedbackTimer;
+
+	void StartPerfectParryFeedback();
+	void EndPerfectParryFeedback();
+
+	UPROPERTY(EditAnywhere, Category = "Parry")
+	float ParryCooldown = 4.f;
+
+	bool bIsParryOnCooldown = false;
+
+	FTimerHandle ParryCooldownTimer;
+
+	// 服务于冷却
+	void StartParryCooldown();
+	void EndParryCooldown();
+
+	UFUNCTION(BlueprintPure, Category = "Parry")
+	bool IsParryOnCooldown() const
+	{
+		return bIsParryOnCooldown;
+	}
+
+	UFUNCTION(BlueprintPure, Category = "Parry")
+	float GetParryCooldownPercent() const;
+
+	UPROPERTY(EditAnywhere, Category = "Parry")
+	UAnimMontage* ParryMontage = nullptr;
+
+public:
 
 	UPROPERTY(EditAnywhere, Category = "Combat")
 	UAnimMontage* AttackMontage = nullptr;
 
 	UFUNCTION(BlueprintPure, Category = "Energy")
-	int32 GetCurrentEnermy() const
+	int32 GetCurrentEnergy() const
 	{
 		return CurrentEnergy;
 	}
 
 	UFUNCTION(BlueprintPure, Category = "Energy")
-	int32 GetMaxEnermy() const
+	int32 GetMaxEnergy() const
 	{
 		return MaxEnergy;
 	}
@@ -191,6 +234,8 @@ private:
 	void AddEnergy(int32 Amount);  // 格挡成功恢复能量
 
 	bool ConsumeEnergy(int32 cost);  // 花费能量升级技能
+
+	void ParryCooldownCleared();
 
 public:
 
