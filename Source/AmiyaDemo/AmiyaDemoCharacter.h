@@ -9,12 +9,22 @@
 #include "AmiyaDemoCharacter.generated.h"
 
 
+UENUM(BlueprintType)
+enum class ESkillPowerState : uint8
+{
+	Base,
+	Enhanced,
+	Overcharged
+};
+
 class USpringArmComponent;
 class UCameraComponent;
 class UInputAction;
 struct FInputActionValue;
 class UAnimMontage;
 class UCameraComponent;
+class UMaterialInterface;
+class UMaterialInstanceDynamic;
 
 DECLARE_LOG_CATEGORY_EXTERN(LogTemplateCharacter, Log, All);
 
@@ -212,6 +222,12 @@ private:  // 自定义参数
 	UPROPERTY(EditAnywhere, Category = "Parry")
 	UAnimMontage* ParryMontage = nullptr;
 
+	UPROPERTY(EditAnywhere, Category = "Skill State")
+	UMaterialInterface* StateGlowMaterial = nullptr;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UMaterialInstanceDynamic> StateGlowMID = nullptr;
+
 public:
 
 	UPROPERTY(EditAnywhere, Category = "Combat")
@@ -237,9 +253,17 @@ public:
 
 	void ParryCooldownCleared();
 
+	UPROPERTY(EditAnywhere, Category = "Skill State")
+	UInputAction* UpgradeAction;
+
 public:
 
 	UPROPERTY(BlueprintAssignable, Category = "Energy")
 	FOnEnergyChanged OnEnergyChanged;
+
+	ESkillPowerState SkillPowerState = ESkillPowerState::Base;
+
+	void TryUpgradeSkillState();  // 尝试升级
+	void SetSkillPowerState(ESkillPowerState NewState);    // 直接改变强化状态
 };
 

@@ -12,6 +12,11 @@ enum class EEnemyCombatState
 	Firing
 };
 
+const float SearchRadii[] =
+{
+	150.f, 300.f, 450.f, 600.f, 800.f
+};
+
 UCLASS()
 class AMIYADEMO_API AEnemyAIController : public AAIController
 {
@@ -24,11 +29,21 @@ private:
 
 	float ChaseUpdateInterval = 0.2f;
 
-	float ResumeChaseDistance = 1000.f;
+	float ResumeChaseDistance = 900.f;
 
-	void UpdateChase();
+	float StartFireDistance = 700.f;
 
-	float StartFireDistance = 800.f;
+	float FireInterval = 1.f;
+
+	float AcceptDistance = 400.f;
+
+	FTimerHandle FireTimer;
+
+	EEnemyCombatState CombatState = EEnemyCombatState::Chasing;
+
+	float ApproachAcceptDistance = 50.f;  // ·þÎñÓÚTryMoveNearPlayer
+
+public:
 
 	void StartFire();
 
@@ -36,12 +51,8 @@ private:
 
 	void FireOnce();
 
-	float FireInterval = 1.f;
+	void UpdateChase();
 
-	float AcceptDistance = 700.f;
-
-	FTimerHandle FireTimer;
-
-	EEnemyCombatState CombatState = EEnemyCombatState::Chasing;
+	bool TryMoveNearPlayer(APawn* PlayerPawn);
 
 };

@@ -16,6 +16,7 @@
 #include "DrawDebugHelpers.h"
 #include "Animation/AnimMontage.h"
 #include "Engine/Engine.h"
+#include "Materials/MaterialInstanceDynamic.h"
 
 AAmiyaDemoCharacter::AAmiyaDemoCharacter()
 {
@@ -59,6 +60,13 @@ void AAmiyaDemoCharacter::BeginPlay()
 {
 	Super::BeginPlay();
 
+	if (StateGlowMaterial)
+	{
+		StateGlowMID = UMaterialInstanceDynamic::Create(StateGlowMaterial, this);
+	}
+
+	SkillPowerState = ESkillPowerState::Base;
+
 	if (FollowCamera)
 	{
 		DefaultFOV = FollowCamera->FieldOfView;
@@ -94,6 +102,9 @@ void AAmiyaDemoCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInput
 
 		// Parry
 		EnhancedInputComponent->BindAction(ParryAction, ETriggerEvent::Started, this, &AAmiyaDemoCharacter::StartParryState);
+
+		// UPgrade
+		EnhancedInputComponent->BindAction(UpgradeAction, ETriggerEvent::Started, this, &AAmiyaDemoCharacter::TryUpgradeSkillState);
 	}
 	else
 	{
@@ -386,4 +397,68 @@ float AAmiyaDemoCharacter::GetParryCooldownPercent() const
 	const float RemainingTime = GetWorld()->GetTimerManager().GetTimerRemaining(ParryCooldownTimer);
 
 	return FMath::Clamp(RemainingTime / ParryCooldown, 0.f, 1.f);
+}
+
+void AAmiyaDemoCharacter::TryUpgradeSkillState()
+{
+	switch (SkillPowerState)
+	{
+	case ESkillPowerState::Base :
+		if (ConsumeEnergy(3))
+		{
+			SetSkillPowerState(ESkillPowerState::Enhanced);
+		}
+		break;
+
+	case ESkillPowerState::Enhanced :
+		if (ConsumeEnergy(2))
+		{
+			SetSkillPowerState(ESkillPowerState::Overcharged);
+		}
+		break;
+
+	case ESkillPowerState::Overcharged :
+		break;
+	}
+
+	GEngine->AddOnScreenDebugMessage(
+		-1,
+		2.f,
+		FColor::Yellow,
+		FString::Printf(
+			TEXT("State=%d MID=%s"),
+			static_cast<int32>(SkillPowerState),
+			StateGlowMID ? TEXT("Valid") : TEXT("NULL")
+		)
+	);
+}
+
+void AAmiyaDemoCharacter::SetSkillPowerState(ESkillPowerState NewState)
+{
+	SkillPowerState = NewState;
+
+	switch (SkillPowerState)
+	{
+	case ESkillPowerState::Base :
+		GetMesh()->SetOverlayMaterial(nullptr);
+		break;
+
+	case ESkillPowerState::Enhanced :
+		if (StateGlowMID)
+		{
+			StateGlowMID->SetVectorParameterValue(TEXT("GlowColor"), FLinearColor::Yellow);
+
+			GetMesh()->SetOverlayMaterial(StateGlowMID);
+		}
+		break;
+
+	case ESkillPowerState::Overcharged :
+		if (StateGlowMID)
+		{
+			StateGlowMID->SetVectorParameterValue(TEXT("GlowColor"), FLinearColor::Red);
+
+			GetMesh()->SetOverlayMaterial(StateGlowMID);
+		}
+		break;
+	}
 }
