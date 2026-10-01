@@ -106,6 +106,9 @@ protected:
 
 	void Attack();
 
+	UFUNCTION(BlueprintCallable, Category = "Combat")
+	void PerformPunchHit();
+
 	virtual void Tick(float Delta) override;
 
 	virtual float TakeDamage(float DamageAmount, struct FDamageEvent const& DamageEvent, AController* EventInstigator, AActor* DamageCauser) override;
@@ -255,6 +258,16 @@ public:
 
 	UPROPERTY(EditAnywhere, Category = "Skill State")
 	UInputAction* UpgradeAction;
+
+	UPROPERTY(EditAnywhere, Category = "Combat")
+	float AttackCooldown = 0.4f;
+
+	bool bIsAttackOnCooldown = false;
+
+	FTimerHandle AttackCooldownTimer;
+
+	void StartAttackCooldown();
+	void EndAttackCooldown();
 
 public:
 

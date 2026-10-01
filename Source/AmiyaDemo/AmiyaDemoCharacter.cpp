@@ -190,12 +190,26 @@ void AAmiyaDemoCharacter::Tick(float Delta)
 
 void AAmiyaDemoCharacter::Attack()
 {
+	if (bIsAttackOnCooldown)
+	{
+		return;
+	}
+
+	StartAttackCooldown();
 
 	if (bIsParrying)
 	{
 		EndParryState();
 	}
 
+	if (AttackMontage)
+	{
+		PlayAnimMontage(AttackMontage);
+	}
+}
+
+void AAmiyaDemoCharacter::PerformPunchHit()
+{
 	FVector ActorLocal = AAmiyaDemoCharacter::GetActorLocation();
 	FVector Forward = AAmiyaDemoCharacter::GetActorForwardVector();
 	FVector Start = ActorLocal + Forward * StartOffset;
@@ -207,7 +221,7 @@ void AAmiyaDemoCharacter::Attack()
 
 	Sphere = FCollisionShape::MakeSphere(Radius);
 	Params.AddIgnoredActor(this);
-	bool BHit = GetWorld()->SweepSingleByChannel(HitResult, Start, End,	FQuat::Identity, ECC_Visibility, Sphere, Params);
+	bool BHit = GetWorld()->SweepSingleByChannel(HitResult, Start, End, FQuat::Identity, ECC_Visibility, Sphere, Params);
 
 	if (BHit)
 	{
@@ -215,11 +229,6 @@ void AAmiyaDemoCharacter::Attack()
 		{
 			UGameplayStatics::ApplyDamage(HitResult.GetActor(), Damage, GetController(), this, UDamageType::StaticClass());
 		}
-	}
-
-	if (AttackMontage)
-	{
-		PlayAnimMontage(AttackMontage);
 	}
 
 }
@@ -358,7 +367,7 @@ void AAmiyaDemoCharacter::EndPerfectParryFeedback()
 	UGameplayStatics::SetGlobalTimeDilation(GetWorld(), 1.f);
 }
 
-void AAmiyaDemoCharacter::EndParryState()  // 总的负责收尾
+void AAmiyaDemoCharacter::EndParryState()  // 总的负责收尾(要进入冷却)
 {
 	if (!bIsParrying)
 	{
@@ -420,17 +429,6 @@ void AAmiyaDemoCharacter::TryUpgradeSkillState()
 	case ESkillPowerState::Overcharged :
 		break;
 	}
-
-	GEngine->AddOnScreenDebugMessage(
-		-1,
-		2.f,
-		FColor::Yellow,
-		FString::Printf(
-			TEXT("State=%d MID=%s"),
-			static_cast<int32>(SkillPowerState),
-			StateGlowMID ? TEXT("Valid") : TEXT("NULL")
-		)
-	);
 }
 
 void AAmiyaDemoCharacter::SetSkillPowerState(ESkillPowerState NewState)
@@ -461,4 +459,16 @@ void AAmiyaDemoCharacter::SetSkillPowerState(ESkillPowerState NewState)
 		}
 		break;
 	}
+}
+
+void AAmiyaDemoCharacter::StartAttackCooldown()
+{
+	bIsAttackOnCooldown = true;
+
+	GetWorld()->GetTimerManager().SetTimer(AttackCooldownTimer, this, &AAmiyaDemoCharacter::EndAttackCooldown, AttackCooldown, false);
+}
+
+void AAmiyaDemoCharacter::EndAttackCooldown()
+{
+	bIsAttackOnCooldown = false;
 }
