@@ -6,6 +6,7 @@
 #include "GameFramework/Character.h"
 #include "Logging/LogMacros.h"
 #include "Camera/CameraComponent.h"
+#include "EnemyCharacter.h"
 #include "AmiyaDemoCharacter.generated.h"
 
 
@@ -76,15 +77,21 @@ protected:  //暴露给编辑器的输入相关属性
 	UPROPERTY(EditAnywhere, Category = "Input")
 	UInputAction* ParryAction;
 
-	UPROPERTY(EditAnywhere, Category = "Move")
+	UPROPERTY(EditAnywhere, Category = "Input")
 	float WalkSpeed = 500.f;
 
-	UPROPERTY(EditAnywhere, Category = "Move")
+	UPROPERTY(EditAnywhere, Category = "Input")
 	float SprintSpeed = 800.f;
 
 	void StartSprint();
 
 	void StopSprint();
+
+	UPROPERTY(EditAnywhere, Category = "Input")
+	UInputAction* ChainLightningAction;
+
+	UPROPERTY(EditAnywhere, Category = "Input")
+	UInputAction* CancelAction;
 
 public:
 
@@ -268,6 +275,22 @@ public:
 
 	void StartAttackCooldown();
 	void EndAttackCooldown();
+
+	bool bIsChainLightningAiming = false;
+
+	void HandleChainLightningInput();
+	void StartChainLightningAim();
+	void TryReleaseChainLightning();
+	void CancelChainLightningAim();
+
+	void CancelCurrentAction();
+
+	AEnemyCharacter* CurrentChainLightningTarget = nullptr;
+
+	void UpdateChainLightningTarget();
+
+	UPROPERTY(EditAnywhere, Category = "Chain Lightning")
+	float ChainLightningTargetRadius = 250.f;
 
 public:
 

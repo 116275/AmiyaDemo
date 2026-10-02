@@ -17,6 +17,7 @@
 #include "Animation/AnimMontage.h"
 #include "Engine/Engine.h"
 #include "Materials/MaterialInstanceDynamic.h"
+#include "EnemyCharacter.h"
 
 AAmiyaDemoCharacter::AAmiyaDemoCharacter()
 {
@@ -105,10 +106,32 @@ void AAmiyaDemoCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInput
 
 		// UPgrade
 		EnhancedInputComponent->BindAction(UpgradeAction, ETriggerEvent::Started, this, &AAmiyaDemoCharacter::TryUpgradeSkillState);
+
+		// ChainLightning
+		EnhancedInputComponent->BindAction(ChainLightningAction, ETriggerEvent::Started, this, &AAmiyaDemoCharacter::HandleChainLightningInput);
+
+		// Cancel
+		EnhancedInputComponent->BindAction(CancelAction, ETriggerEvent::Started, this, &AAmiyaDemoCharacter::CancelCurrentAction);
 	}
 	else
 	{
 		UE_LOG(LogAmiyaDemo, Error, TEXT("'%s' Failed to find an Enhanced Input component! This template is built to use the Enhanced Input system. If you intend to use the legacy system, then you will need to update this C++ file."), *GetNameSafe(this));
+	}
+}
+
+void AAmiyaDemoCharacter::Tick(float Delta)
+{
+	Super::Tick(Delta);
+	TimeSinceLastDamage += Delta;
+
+	if (CurrentHealth < MaxHealth && TimeSinceLastDamage >= RegenTime)
+	{
+		CurrentHealth = FMath::Clamp(CurrentHealth + RegenAmount * Delta, 0.f, MaxHealth);
+	}
+
+	if (bIsChainLightningAiming)
+	{
+		UpdateChainLightningTarget();
 	}
 }
 
@@ -176,16 +199,6 @@ void AAmiyaDemoCharacter::DoJumpEnd()
 {
 	// signal the character to stop jumping
 	StopJumping();
-}
-
-void AAmiyaDemoCharacter::Tick(float Delta)
-{
-	Super::Tick(Delta);
-	TimeSinceLastDamage += Delta;
-	if (CurrentHealth < MaxHealth && TimeSinceLastDamage >= RegenTime)
-	{
-		CurrentHealth = FMath::Clamp(CurrentHealth + RegenAmount * Delta, 0.f, MaxHealth);
-	}
 }
 
 void AAmiyaDemoCharacter::Attack()
@@ -471,4 +484,152 @@ void AAmiyaDemoCharacter::StartAttackCooldown()
 void AAmiyaDemoCharacter::EndAttackCooldown()
 {
 	bIsAttackOnCooldown = false;
+}
+
+void AAmiyaDemoCharacter::CancelCurrentAction()   // 通用取消当前动作（用于技能）
+{
+	if (bIsChainLightningAiming)
+	{
+		CancelChainLightningAim();
+		return;
+	}
+}
+
+void AAmiyaDemoCharacter::HandleChainLightningInput()
+{
+	if (!bIsChainLightningAiming)
+	{
+		StartChainLightningAim();
+		return;
+	}
+
+	TryReleaseChainLightning();
+}
+
+void AAmiyaDemoCharacter::StartChainLightningAim()
+{
+	if (bIsChainLightningAiming)
+	{
+		return;
+	}
+
+	// 后面再补：
+	// if (Energy < Cost) return;
+	// if (bChainLightningOnCooldown) return;
+
+	bIsChainLightningAiming = true;
+	CurrentChainLightningTarget = nullptr;
+
+	// 后续：
+	// ShowCrosshair();
+	// ZoomCamera();
+}
+
+void AAmiyaDemoCharacter::TryReleaseChainLightning()
+{
+	if (!bIsChainLightningAiming)   // 如果没在瞄准
+	{
+		return;
+	}
+
+	if (!IsValid(CurrentChainLightningTarget))   // 如果没有目标，取消释放(或目标死亡)
+	{
+		CancelChainLightningAim();
+		return;
+	}
+
+	// 真正确认释放以后，才开始产生代价
+	bIsChainLightningAiming = false;
+
+	// ConsumeEnergy(...)
+	// StartCooldown(...)
+	// CastChainLightning(CurrentChainLightningTarget);
+}
+
+void AAmiyaDemoCharacter::CancelChainLightningAim()
+{
+	if (!bIsChainLightningAiming)
+	{
+		return;
+	}
+
+	bIsChainLightningAiming = false;
+	CurrentChainLightningTarget = nullptr;
+
+	// 后续：
+	// HideCrosshair();
+	// RestoreCameraFOV();
+	// RemoveTargetHighlight();
+}
+
+void AAmiyaDemoCharacter::UpdateChainLightningTarget()
+{
+	APlayerController* PlayerController = Cast<APlayerController>(GetController());
+
+	if (!PlayerController)
+	{
+		return;
+	}
+
+	int32 ViewportX, ViewportY;
+	PlayerController->GetViewportSize(ViewportX, ViewportY);
+
+	const FVector2D ScreenCenter(ViewportX * 0.5f, ViewportY * 0.5f);
+
+	TArray<AActor*> Enemies;
+	UGameplayStatics::GetAllActorsOfClass(GetWorld(), AEnemyCharacter::StaticClass(), Enemies);
+
+	AEnemyCharacter* BestTarget = nullptr;
+	float BestDistance = TNumericLimits<float>::Max();
+
+	for (AActor* Actor : Enemies)
+	{
+		AEnemyCharacter* Enemy = Cast<AEnemyCharacter>(Actor);
+
+		if (!IsValid(Enemy))
+		{
+			continue;
+		}
+
+		FVector2D ScreenPosition;
+
+		const bool bProjected = PlayerController->ProjectWorldLocationToScreen(Enemy->GetActorLocation(), ScreenPosition);
+
+		if (!bProjected)
+		{
+			continue;
+		}
+
+		float ScreenDistance = FVector2D::Distance(ScreenPosition, ScreenCenter);
+
+		if (ScreenDistance <= ChainLightningTargetRadius && ScreenDistance < BestDistance)
+		{
+			BestDistance = ScreenDistance;
+			BestTarget = Enemy;
+		}
+	}
+
+	CurrentChainLightningTarget = BestTarget;
+
+	if (CurrentChainLightningTarget)
+	{
+		GEngine->AddOnScreenDebugMessage(
+			1,
+			0.f,
+			FColor::Green,
+			FString::Printf(
+				TEXT("Target: %s"),
+				*CurrentChainLightningTarget->GetName()
+			)
+		);
+	}
+	else
+	{
+		GEngine->AddOnScreenDebugMessage(
+			1,
+			0.f,
+			FColor::Red,
+			TEXT("No Target")
+		);
+	}
 }
