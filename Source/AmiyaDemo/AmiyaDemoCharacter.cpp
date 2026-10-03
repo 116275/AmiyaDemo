@@ -210,10 +210,8 @@ void AAmiyaDemoCharacter::Attack()
 
 	StartAttackCooldown();
 
-	if (bIsParrying)
-	{
-		EndParryState();
-	}
+	CancelCurrentAction();
+
 
 	if (AttackMontage)
 	{
@@ -328,6 +326,8 @@ void AAmiyaDemoCharacter::StartParryState()
 	{
 		return;
 	}
+
+	CancelCurrentAction();
 
 	if (ParryMontage)
 	{
@@ -491,7 +491,11 @@ void AAmiyaDemoCharacter::CancelCurrentAction()   // Õ®”√»°œ˚µ±«∞∂Ø◊˜£®”√”⁄ººƒ‹£
 	if (bIsChainLightningAiming)
 	{
 		CancelChainLightningAim();
-		return;
+	}
+
+	if (bIsParrying)
+	{
+		EndParryState();
 	}
 }
 
@@ -513,12 +517,23 @@ void AAmiyaDemoCharacter::StartChainLightningAim()
 		return;
 	}
 
+	CancelCurrentAction();
+
 	// ∫Û√Ê‘Ÿ≤π£∫
 	// if (Energy < Cost) return;
 	// if (bChainLightningOnCooldown) return;
 
 	bIsChainLightningAiming = true;
 	CurrentChainLightningTarget = nullptr;
+
+	if (FollowCamera)
+	{
+		FollowCamera->SetFieldOfView(ChainLightningAimFOV);
+	}
+
+	SetChainLightningAimFade(ChainLightningAimFade);
+
+	OnChainLightningAimChanged.Broadcast(true);
 
 	// ∫Û–¯£∫
 	// ShowCrosshair();
@@ -541,9 +556,28 @@ void AAmiyaDemoCharacter::TryReleaseChainLightning()
 	// ’Ê’˝»∑»œ Õ∑≈“‘∫Û£¨≤≈ø™ º≤˙…˙¥˙º€
 	bIsChainLightningAiming = false;
 
+	if (FollowCamera)
+	{
+		FollowCamera->SetFieldOfView(DefaultFOV);
+	}
+
+	SetChainLightningAimFade(1.0f);
+	SetSkillPowerState(SkillPowerState);
+
+	if (IsValid(CurrentChainLightningTarget))
+	{
+		CurrentChainLightningTarget->SetChainLightningTargetMaterial(false);
+	}
+
+	AEnemyCharacter* Target = CurrentChainLightningTarget;
+
+	CurrentChainLightningTarget = nullptr;   // œ»±£¥Ê‘Ÿ«Â√È◊º◊¥Ã¨
+
+	OnChainLightningAimChanged.Broadcast(false);
+
 	// ConsumeEnergy(...)
 	// StartCooldown(...)
-	// CastChainLightning(CurrentChainLightningTarget);
+	// CastChainLightning(Target);
 }
 
 void AAmiyaDemoCharacter::CancelChainLightningAim()
@@ -554,7 +588,23 @@ void AAmiyaDemoCharacter::CancelChainLightningAim()
 	}
 
 	bIsChainLightningAiming = false;
+
+	if (FollowCamera)
+	{
+		FollowCamera->SetFieldOfView(DefaultFOV);
+	}
+
+	SetChainLightningAimFade(1.0f);
+	SetSkillPowerState(SkillPowerState);
+
+	if (IsValid(CurrentChainLightningTarget))
+	{
+		CurrentChainLightningTarget->SetChainLightningTargetMaterial(false);
+	}
+
 	CurrentChainLightningTarget = nullptr;
+
+	OnChainLightningAimChanged.Broadcast(false);
 
 	// ∫Û–¯£∫
 	// HideCrosshair();
@@ -609,27 +659,25 @@ void AAmiyaDemoCharacter::UpdateChainLightningTarget()
 		}
 	}
 
-	CurrentChainLightningTarget = BestTarget;
+	if (BestTarget != CurrentChainLightningTarget)
+	{
+		if (IsValid(CurrentChainLightningTarget))
+		{
+			CurrentChainLightningTarget->SetChainLightningTargetMaterial(false);
+		}
 
-	if (CurrentChainLightningTarget)
-	{
-		GEngine->AddOnScreenDebugMessage(
-			1,
-			0.f,
-			FColor::Green,
-			FString::Printf(
-				TEXT("Target: %s"),
-				*CurrentChainLightningTarget->GetName()
-			)
-		);
+		CurrentChainLightningTarget = BestTarget;
+
+		if (IsValid(CurrentChainLightningTarget))
+		{
+			CurrentChainLightningTarget->SetChainLightningTargetMaterial(true);
+		}
 	}
-	else
-	{
-		GEngine->AddOnScreenDebugMessage(
-			1,
-			0.f,
-			FColor::Red,
-			TEXT("No Target")
-		);
-	}
+}
+
+void AAmiyaDemoCharacter::SetChainLightningAimFade(float Fade)
+{
+	GetMesh()->SetScalarParameterValueOnMaterials(TEXT("AimFade"), Fade);
+
+	GetMesh()->SetOverlayMaterial(nullptr);
 }

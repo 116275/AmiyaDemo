@@ -36,6 +36,9 @@ private:
 
 	float Damage = 5.f;
 
+	UPROPERTY(EditAnywhere, Category = "Chain Lightning")
+	UMaterialInterface* TargetMaterial;
+
 public:
 
 	virtual float TakeDamage(float DamageAmount, struct FDamageEvent const& DamageEvent, class AController* EventInstigator, AActor* DamageCauser) override;
@@ -53,5 +56,7 @@ public:
 	{
 		return MaxHealth;
 	}
+
+	void SetChainLightningTargetMaterial(bool bIsTarget);
 
 };

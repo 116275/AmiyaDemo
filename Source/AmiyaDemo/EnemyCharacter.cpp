@@ -91,3 +91,15 @@ void AEnemyCharacter::FireAt(AActor* Target)
 		UGameplayStatics::ApplyDamage(HitResult.GetActor(), Damage, GetController(), this, UDamageType::StaticClass());
 	}
 }
+
+void AEnemyCharacter::SetChainLightningTargetMaterial(bool bIsTarget)
+{
+	if (bIsTarget)
+	{
+		GetMesh()->SetOverlayMaterial(TargetMaterial);
+	}
+	else
+	{
+		GetMesh()->SetOverlayMaterial(nullptr);
+	}
+}

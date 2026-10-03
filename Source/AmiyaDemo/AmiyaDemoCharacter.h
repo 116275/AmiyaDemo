@@ -31,6 +31,8 @@ DECLARE_LOG_CATEGORY_EXTERN(LogTemplateCharacter, Log, All);
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnEnergyChanged, int32, NewEnergy);
 
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnChainLightningAimChanged, bool, bIsAiming);
+
 /**
  *  A simple player-controllable third person character
  *  Implements a controllable orbiting camera
@@ -255,6 +257,8 @@ public:
 		return MaxEnergy;
 	}
 
+private:
+
 	void RegenEnergy();  // 自然恢复能量
 
 	void AddEnergy(int32 Amount);  // 格挡成功恢复能量
@@ -290,7 +294,15 @@ public:
 	void UpdateChainLightningTarget();
 
 	UPROPERTY(EditAnywhere, Category = "Chain Lightning")
-	float ChainLightningTargetRadius = 250.f;
+	float ChainLightningTargetRadius = 175.f;
+
+	UPROPERTY(EditAnywhere, Category = "Chain Lightning")
+	float ChainLightningAimFOV = 65.f;
+
+	UPROPERTY(EditAnywhere, Category = "Chain Lightning")
+	float ChainLightningAimFade = 0.4f;
+
+	void SetChainLightningAimFade(float Fade);
 
 public:
 
@@ -301,5 +313,8 @@ public:
 
 	void TryUpgradeSkillState();  // 尝试升级
 	void SetSkillPowerState(ESkillPowerState NewState);    // 直接改变强化状态
+
+	UPROPERTY(BlueprintAssignable, Category = "Chain Lightning")
+	FOnChainLightningAimChanged OnChainLightningAimChanged;  // 瞄准状态改变委托
 };
 
