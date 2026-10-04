@@ -39,6 +39,13 @@ private:
 	UPROPERTY(EditAnywhere, Category = "Chain Lightning")
 	UMaterialInterface* TargetMaterial;
 
+	bool bIsDead = false;
+
+	UPROPERTY(EditAnywhere, Category = "Death")
+	float DeathDestroyDelay = 5.f;
+
+	void HandleDeath(AController* KillerController, AActor* DamageCauser);
+
 public:
 
 	virtual float TakeDamage(float DamageAmount, struct FDamageEvent const& DamageEvent, class AController* EventInstigator, AActor* DamageCauser) override;
@@ -58,5 +65,10 @@ public:
 	}
 
 	void SetChainLightningTargetMaterial(bool bIsTarget);
+
+	bool IsDead() const
+	{
+		return bIsDead;
+	}
 
 };

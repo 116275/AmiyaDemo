@@ -246,6 +246,11 @@ void AAmiyaDemoCharacter::PerformPunchHit()
 
 float AAmiyaDemoCharacter::TakeDamage(float DamageAmount, FDamageEvent const& DamageEvent, AController* EventInstigator, AActor* DamageCauser)
 {
+	if (bIsDead)
+	{
+		return 0.f;
+	}
+
 	float ActualDamage = Super::TakeDamage(DamageAmount, DamageEvent, EventInstigator, DamageCauser);
 
 	if (ActualDamage <= 0.f)
@@ -276,7 +281,7 @@ float AAmiyaDemoCharacter::TakeDamage(float DamageAmount, FDamageEvent const& Da
 
 	if (CurrentHealth <= 0)
 	{
-		Destroy();
+		HandleDeath();
 	}
 
 	return ActualDamage;
@@ -517,11 +522,15 @@ void AAmiyaDemoCharacter::StartChainLightningAim()
 		return;
 	}
 
-	CancelCurrentAction();
+	if (CurrentEnergy < ChainLightningEnergyCost)
+	{
+		return;
+	}
 
 	// 后面再补：
-	// if (Energy < Cost) return;
 	// if (bChainLightningOnCooldown) return;
+
+	CancelCurrentAction();
 
 	bIsChainLightningAiming = true;
 	CurrentChainLightningTarget = nullptr;
@@ -553,6 +562,12 @@ void AAmiyaDemoCharacter::TryReleaseChainLightning()
 		return;
 	}
 
+	if (!ConsumeEnergy(ChainLightningEnergyCost))  // 如果能量不足
+	{
+		CancelChainLightningAim();
+		return;
+	}
+
 	// 真正确认释放以后，才开始产生代价
 	bIsChainLightningAiming = false;
 
@@ -575,9 +590,9 @@ void AAmiyaDemoCharacter::TryReleaseChainLightning()
 
 	OnChainLightningAimChanged.Broadcast(false);
 
-	// ConsumeEnergy(...)
+	CastChainLightning(Target);
+
 	// StartCooldown(...)
-	// CastChainLightning(Target);
 }
 
 void AAmiyaDemoCharacter::CancelChainLightningAim()
@@ -636,7 +651,14 @@ void AAmiyaDemoCharacter::UpdateChainLightningTarget()
 	{
 		AEnemyCharacter* Enemy = Cast<AEnemyCharacter>(Actor);
 
-		if (!IsValid(Enemy))
+		if (!IsValid(Enemy) || Enemy->IsDead())
+		{
+			continue;
+		}
+
+		const float DistanceSq = FVector::DistSquared(GetActorLocation(), Enemy->GetActorLocation());
+
+		if (DistanceSq > FMath::Square(ChainLightningMaxCastDistance))   // 小优化
 		{
 			continue;
 		}
@@ -680,4 +702,132 @@ void AAmiyaDemoCharacter::SetChainLightningAimFade(float Fade)
 	GetMesh()->SetScalarParameterValueOnMaterials(TEXT("AimFade"), Fade);
 
 	GetMesh()->SetOverlayMaterial(nullptr);
+}
+
+void AAmiyaDemoCharacter::CastChainLightning(AEnemyCharacter* Target)
+{
+	if (!IsValid(Target))
+	{
+		return;
+	}
+
+	TSet<AEnemyCharacter*> HitTargets;
+	AEnemyCharacter* CurrentTarget = Target;  // 链式闪电当前跳到的敌人
+	float CurrentDamage = ChainLightningDamage;  // 当前链式闪电伤害
+
+	FVector ChainStart = GetActorLocation() + FVector(0.f, 0.f, 75.f);
+
+	for (int32 HitIndex = 0; HitIndex < ChainLightningMaxTargets; HitIndex++)
+	{
+		if (!IsValid(CurrentTarget))
+		{
+			break;
+		}
+
+		const FVector TargetLocation = CurrentTarget->GetActorLocation() + FVector(0.f, 0.f, 75.f);
+
+		DrawDebugLine(GetWorld(), ChainStart, TargetLocation, FColor::Yellow, false, 0.75f, 0, 5.f);
+
+		HitTargets.Add(CurrentTarget);
+
+		AEnemyCharacter* NextTarget = nullptr;
+
+		if (HitIndex + 1 < ChainLightningMaxTargets)
+		{
+			NextTarget = FindNextChainLightningTarget(CurrentTarget, HitTargets);
+		}
+
+		UGameplayStatics::ApplyDamage(CurrentTarget, CurrentDamage, GetController(), this, UDamageType::StaticClass());
+
+		ChainStart = TargetLocation;
+		CurrentTarget = NextTarget;
+		CurrentDamage *= ChainLightningDamageDecay;
+	}
+
+}
+
+AEnemyCharacter* AAmiyaDemoCharacter::FindNextChainLightningTarget(AEnemyCharacter* FromTarget, const TSet<AEnemyCharacter*>& HitTargets)
+{
+	if (!IsValid(FromTarget))
+	{
+		return nullptr;
+	}
+
+	TArray<AActor*> Enemies;
+	UGameplayStatics::GetAllActorsOfClass(GetWorld(), AEnemyCharacter::StaticClass(), Enemies);
+
+	AEnemyCharacter* BestUnvisitedTarget = nullptr;
+	float BestUnvisitedDistance = TNumericLimits<float>::Max();
+
+	AEnemyCharacter* BestFallbackTarget = nullptr;
+	float BestFallbackDistance = TNumericLimits<float>::Max();
+
+	const FVector FromLocation = FromTarget->GetActorLocation();
+
+	for (AActor* Actor : Enemies)
+	{
+		AEnemyCharacter* Enemy = Cast<AEnemyCharacter>(Actor);
+
+		if (!IsValid(Enemy) || Enemy == FromTarget || Enemy->IsDead())
+		{
+			continue;
+		}
+
+		const float Distance = FVector::Dist(FromLocation, Enemy->GetActorLocation());
+
+		if (Distance > ChainLightningRadius)
+		{
+			continue;
+		}
+
+		if (Distance < BestFallbackDistance)
+		{
+			BestFallbackDistance = Distance;
+			BestFallbackTarget = Enemy;
+		}
+
+		if (!HitTargets.Contains(Enemy) && Distance < BestUnvisitedDistance)
+		{
+			BestUnvisitedDistance = Distance;
+			BestUnvisitedTarget = Enemy;
+		}
+	}
+
+	return BestUnvisitedTarget ? BestUnvisitedTarget : BestFallbackTarget;
+}
+
+void AAmiyaDemoCharacter::HandleDeath()
+{
+	if (bIsDead)
+	{
+		return;
+	}
+
+	bIsDead = true;
+
+	CancelCurrentAction();
+
+	GetCharacterMovement()->StopMovementImmediately();
+	GetCharacterMovement()->DisableMovement();
+
+	if (APlayerController* PC =
+		Cast<APlayerController>(GetController()))
+	{
+		DisableInput(PC);
+	}
+
+	GetCapsuleComponent()->SetCollisionEnabled(
+		ECollisionEnabled::NoCollision
+	);
+
+	GetMesh()->SetCollisionProfileName(TEXT("Ragdoll"));
+	GetMesh()->SetCollisionEnabled(
+		ECollisionEnabled::QueryAndPhysics
+	);
+
+	GetMesh()->SetAllBodiesSimulatePhysics(true);
+	GetMesh()->SetSimulatePhysics(true);
+	GetMesh()->WakeAllRigidBodies();
+
+	SetLifeSpan(DeathDestroyDelay);
 }

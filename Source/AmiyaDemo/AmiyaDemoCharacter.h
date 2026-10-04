@@ -304,6 +304,35 @@ private:
 
 	void SetChainLightningAimFade(float Fade);
 
+	UPROPERTY(EditAnywhere, Category = "Chain Lightning")
+	int32 ChainLightningEnergyCost = 3;
+
+	void CastChainLightning(AEnemyCharacter* Target);
+
+	// 优先攻击未被跳跃的敌人，最多跳三次
+	TSet<AEnemyCharacter*> VisitedTargets;
+
+	AEnemyCharacter* FindNextChainLightningTarget(AEnemyCharacter* FromTarget, const TSet<AEnemyCharacter*>& VisitedTargets);
+
+	UPROPERTY(EditAnywhere, Category = "Chain Lightning")
+	float ChainLightningRadius = 600.f;
+
+	UPROPERTY(EditAnywhere, Category = "Chain Lightning")
+	int32 ChainLightningMaxTargets = 3;
+
+	UPROPERTY(EditAnywhere, Category = "Chain Lightning")
+	float ChainLightningDamageDecay = 0.75f;
+
+	UPROPERTY(EditAnywhere, Category = "Chain Lightning")
+	float ChainLightningMaxCastDistance = 900.f;   // 链式闪电最大施法距离
+
+	bool bIsDead = false;
+
+	UPROPERTY(EditAnywhere, Category = "Death")
+	float DeathDestroyDelay = 3.f;
+
+	void HandleDeath();
+
 public:
 
 	UPROPERTY(BlueprintAssignable, Category = "Energy")
@@ -316,5 +345,13 @@ public:
 
 	UPROPERTY(BlueprintAssignable, Category = "Chain Lightning")
 	FOnChainLightningAimChanged OnChainLightningAimChanged;  // 瞄准状态改变委托
+
+	UPROPERTY(EditAnywhere, Category = "Chain Lightning")
+	float ChainLightningDamage = 100.f;
+
+	void RewardEnergyForKill(int32 Amount)
+	{
+		AddEnergy(Amount);
+	}
 };
 

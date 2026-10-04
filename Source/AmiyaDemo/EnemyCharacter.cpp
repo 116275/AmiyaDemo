@@ -5,6 +5,9 @@
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Kismet/GameplayStatics.h"
 #include "AmiyaDemoGameMode.h"
+#include "Components/CapsuleComponent.h"
+#include "Components/SkeletalMeshComponent.h"
+#include "AmiyaDemoCharacter.h"
 
 // Sets default values
 AEnemyCharacter::AEnemyCharacter()
@@ -39,20 +42,73 @@ void AEnemyCharacter::Tick(float DeltaTime)
 
 float AEnemyCharacter::TakeDamage(float DamageAmount, FDamageEvent const& DamageEvent, AController* EventInstigator, AActor* DamageCauser)
 {
+	if (bIsDead)
+	{
+		return 0.f;
+	}
+
 	float DamageApplied = Super::TakeDamage(DamageAmount, DamageEvent, EventInstigator, DamageCauser);
-	CurrentHealth -= DamageApplied;
+
+	if (DamageApplied <= 0.f)
+	{
+		return 0.f;
+	}
+
+	CurrentHealth = FMath::Clamp(CurrentHealth - DamageApplied, 0.f, MaxHealth);
+
 	if (CurrentHealth <= 0.0f)
 	{
-		// Handle character death
-		AAmiyaDemoGameMode* CurrentGameMode = Cast<AAmiyaDemoGameMode>(GetWorld()->GetAuthGameMode());
-
-		if (CurrentGameMode)
-		{
-			CurrentGameMode->AddKill();
-		}
-		Destroy();
+		HandleDeath(EventInstigator, DamageCauser);
 	}
 	return DamageApplied;
+}
+
+void AEnemyCharacter::HandleDeath(AController* KillerController, AActor* DamageCauser)
+{
+	if (bIsDead)
+	{
+		return;
+	}
+
+	bIsDead = true;
+
+	if (AAmiyaDemoGameMode* CurrentGameMode = Cast<AAmiyaDemoGameMode>(GetWorld()->GetAuthGameMode()))
+	{
+		CurrentGameMode->AddKill();
+	}
+
+	// 停止角色移动
+	GetCharacterMovement()->StopMovementImmediately();
+	GetCharacterMovement()->DisableMovement();
+
+	// AI 不再控制尸体
+	DetachFromControllerPendingDestroy();
+
+	// Capsule 不再挡路
+	GetCapsuleComponent()->SetCollisionEnabled(
+		ECollisionEnabled::NoCollision
+	);
+
+	// Skeletal Mesh 交给物理系统
+	GetMesh()->SetCollisionProfileName(TEXT("Ragdoll"));
+	GetMesh()->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+
+	GetMesh()->SetAllBodiesSimulatePhysics(true);
+	GetMesh()->SetSimulatePhysics(true);
+	GetMesh()->WakeAllRigidBodies();
+
+	GetMesh()->SetCollisionResponseToChannel(ECC_Visibility, ECR_Ignore);  // 尸体不挡子弹
+
+	// 尸体保留一会，再真正销毁 Actor
+	SetLifeSpan(DeathDestroyDelay);
+
+	if (KillerController)
+	{
+		if (AAmiyaDemoCharacter* Killer = Cast<AAmiyaDemoCharacter>(KillerController->GetPawn()))
+		{
+			Killer->RewardEnergyForKill(1);
+		}
+	}
 }
 
 void AEnemyCharacter::FireAt(AActor* Target)
@@ -88,6 +144,13 @@ void AEnemyCharacter::FireAt(AActor* Target)
 
 	if (bHit && HitResult.GetActor())
 	{
+		AActor* HitActor = HitResult.GetActor();
+
+		if (HitActor->IsA<AEnemyCharacter>())
+		{
+			return;
+		}
+
 		UGameplayStatics::ApplyDamage(HitResult.GetActor(), Damage, GetController(), this, UDamageType::StaticClass());
 	}
 }
