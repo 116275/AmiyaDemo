@@ -155,7 +155,7 @@ public:
 
 private:  // 自定义参数
 
-	float CurrentHealth = 100.f;
+	float CurrentHealth = 300.f;
 	float MaxHealth = 300.f;
 
 	float StartOffset = 50.f;
@@ -163,7 +163,7 @@ private:  // 自定义参数
 	float Radius = 50.f;
 	float Damage = 50.f;
 
-	float RegenTime = 3.f;   // 多少秒后开始回血
+	float RegenTime = 2.f;   // 多少秒后开始回血
 	float RegenAmount = 10.f;   // 每秒回血量
 	float TimeSinceLastDamage = 0.f;  // 离上一次受伤隔了多久
 
@@ -174,7 +174,7 @@ private:  // 自定义参数
 	int32 EnergyRegen = 1;
 
 	UPROPERTY(EditAnywhere, Category = "Energy")
-	float EnergyRegenInterval = 5.f;
+	float EnergyRegenInterval = 3.f;
 
 	FTimerHandle EnergyRegenTimer;
 
@@ -307,7 +307,7 @@ private:
 	UPROPERTY(EditAnywhere, Category = "Chain Lightning")
 	int32 ChainLightningEnergyCost = 3;
 
-	void CastChainLightning(AEnemyCharacter* Target);
+	void CastChainLightning(AEnemyCharacter* Target, ESkillPowerState CastState);
 
 	// 优先攻击未被跳跃的敌人，最多跳三次
 	TSet<AEnemyCharacter*> VisitedTargets;
@@ -318,12 +318,6 @@ private:
 	float ChainLightningRadius = 600.f;
 
 	UPROPERTY(EditAnywhere, Category = "Chain Lightning")
-	int32 ChainLightningMaxTargets = 3;
-
-	UPROPERTY(EditAnywhere, Category = "Chain Lightning")
-	float ChainLightningDamageDecay = 0.75f;
-
-	UPROPERTY(EditAnywhere, Category = "Chain Lightning")
 	float ChainLightningMaxCastDistance = 900.f;   // 链式闪电最大施法距离
 
 	bool bIsDead = false;
@@ -332,6 +326,14 @@ private:
 	float DeathDestroyDelay = 3.f;
 
 	void HandleDeath();
+
+	UPROPERTY(EditAnywhere, Category = "Chain Lightning")
+	float ThunderstormRadius = 350.f;
+
+	UPROPERTY(EditAnywhere, Category = "Chain Lightning")
+	float ThunderstormDamage = 50.f;
+
+	void SpawnThunderstormAt(const FVector& Center);
 
 public:
 

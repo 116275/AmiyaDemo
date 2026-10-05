@@ -577,7 +577,6 @@ void AAmiyaDemoCharacter::TryReleaseChainLightning()
 	}
 
 	SetChainLightningAimFade(1.0f);
-	SetSkillPowerState(SkillPowerState);
 
 	if (IsValid(CurrentChainLightningTarget))
 	{
@@ -590,7 +589,11 @@ void AAmiyaDemoCharacter::TryReleaseChainLightning()
 
 	OnChainLightningAimChanged.Broadcast(false);
 
-	CastChainLightning(Target);
+	const ESkillPowerState CastState = SkillPowerState;  // 释放时的技能状态
+
+	CastChainLightning(Target, CastState);
+
+	SetSkillPowerState(ESkillPowerState::Base);
 
 	// StartCooldown(...)
 }
@@ -704,11 +707,30 @@ void AAmiyaDemoCharacter::SetChainLightningAimFade(float Fade)
 	GetMesh()->SetOverlayMaterial(nullptr);
 }
 
-void AAmiyaDemoCharacter::CastChainLightning(AEnemyCharacter* Target)
+void AAmiyaDemoCharacter::CastChainLightning(AEnemyCharacter* Target, ESkillPowerState CastState)
 {
 	if (!IsValid(Target))
 	{
 		return;
+	}
+
+	int32 MaxTargets = 3;
+	float DamageDecay = 0.75f;
+
+	switch (CastState)
+	{
+	case ESkillPowerState::Base :
+		MaxTargets = 3;
+		DamageDecay = 0.75f;
+		break;
+	case ESkillPowerState::Enhanced :
+		MaxTargets = 4;
+		DamageDecay = 1.f;
+		break;
+	case ESkillPowerState::Overcharged :
+		MaxTargets = 6;
+		DamageDecay = 1.f;
+		break;
 	}
 
 	TSet<AEnemyCharacter*> HitTargets;
@@ -717,7 +739,7 @@ void AAmiyaDemoCharacter::CastChainLightning(AEnemyCharacter* Target)
 
 	FVector ChainStart = GetActorLocation() + FVector(0.f, 0.f, 75.f);
 
-	for (int32 HitIndex = 0; HitIndex < ChainLightningMaxTargets; HitIndex++)
+	for (int32 HitIndex = 0; HitIndex < MaxTargets; HitIndex++)
 	{
 		if (!IsValid(CurrentTarget))
 		{
@@ -732,7 +754,7 @@ void AAmiyaDemoCharacter::CastChainLightning(AEnemyCharacter* Target)
 
 		AEnemyCharacter* NextTarget = nullptr;
 
-		if (HitIndex + 1 < ChainLightningMaxTargets)
+		if (HitIndex + 1 < MaxTargets)
 		{
 			NextTarget = FindNextChainLightningTarget(CurrentTarget, HitTargets);
 		}
@@ -741,9 +763,55 @@ void AAmiyaDemoCharacter::CastChainLightning(AEnemyCharacter* Target)
 
 		ChainStart = TargetLocation;
 		CurrentTarget = NextTarget;
-		CurrentDamage *= ChainLightningDamageDecay;
+		CurrentDamage *= DamageDecay;
 	}
 
+	if (CastState == ESkillPowerState::Overcharged)  // 状态2时，技能结束释放雷暴
+	{
+		for (AEnemyCharacter* HitTarget : HitTargets)
+		{
+			if (!IsValid(HitTarget))
+			{
+				continue;
+			}
+
+			const FVector StormCenter =
+				HitTarget->GetActorLocation();
+
+			SpawnThunderstormAt(HitTarget->GetBodyLocation());
+		}
+	}
+
+}
+
+void AAmiyaDemoCharacter::SpawnThunderstormAt(const FVector& StormCenter)
+{
+	DrawDebugSphere(GetWorld(), StormCenter, ThunderstormRadius, 24, FColor::Purple, false, 1.5f, 0, 3.f);
+
+	TArray<AActor*> Enemies;
+
+	UGameplayStatics::GetAllActorsOfClass(GetWorld(), AEnemyCharacter::StaticClass(), Enemies);
+
+	const float Pow = FMath::Square(ThunderstormRadius);
+
+	for (AActor* Actor : Enemies)
+	{
+		AEnemyCharacter* Enemy = Cast<AEnemyCharacter>(Actor);
+
+		if (!IsValid(Enemy) || Enemy->IsDead())
+		{
+			continue;
+		}
+
+		float DistanceSq = FVector::DistSquared(StormCenter, Enemy->GetBodyLocation());
+
+		if (DistanceSq > Pow)
+		{
+			continue;
+		}
+
+		UGameplayStatics::ApplyDamage(Enemy, ThunderstormDamage, GetController(), this, UDamageType::StaticClass());
+	}
 }
 
 AEnemyCharacter* AAmiyaDemoCharacter::FindNextChainLightningTarget(AEnemyCharacter* FromTarget, const TSet<AEnemyCharacter*>& HitTargets)

@@ -24,7 +24,7 @@ private:
 	int32 CoinGoal = 20;  // 目标是捡几枚
 
 	int32 KillCount = 0;
-	int32 KillGoal = 10;
+	int32 KillGoal = 20;
 
 public:
 
@@ -68,7 +68,7 @@ public:
 	TSubclassOf<AEnemyCharacter> EnemyClass;
 
 	UPROPERTY(EditAnywhere, Category = "Enemy Spawn")
-	int32 MaxActiveEnemies = 3;
+	int32 MaxActiveEnemies = 5;
 
 	int32 ActiveEnemies = 0;
 

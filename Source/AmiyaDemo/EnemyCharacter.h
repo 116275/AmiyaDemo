@@ -28,7 +28,7 @@ private:
 	float CurrentHealth = 100.0f;
 
 	UPROPERTY(EditAnywhere, Category = "Health")
-	float MaxHealth = 100.0f;
+	float MaxHealth = 200.0f;
 
 	float FireRange = 1200.f;
 
@@ -69,6 +69,16 @@ public:
 	bool IsDead() const
 	{
 		return bIsDead;
+	}
+
+	FVector GetBodyLocation() const   // 防止尸体滚动造成CapsuleComponent的中心点偏移，使用Mesh的Bounds.Origin作为身体位置
+	{
+		if (GetMesh())
+		{
+			return GetMesh()->Bounds.Origin;
+		}
+
+		return GetActorLocation();
 	}
 
 };
