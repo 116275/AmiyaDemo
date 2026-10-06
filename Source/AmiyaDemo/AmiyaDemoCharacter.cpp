@@ -18,6 +18,7 @@
 #include "Engine/Engine.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "EnemyCharacter.h"
+#include "ThunderstormDamageType.h"
 
 AAmiyaDemoCharacter::AAmiyaDemoCharacter()
 {
@@ -810,7 +811,7 @@ void AAmiyaDemoCharacter::SpawnThunderstormAt(const FVector& StormCenter)
 			continue;
 		}
 
-		UGameplayStatics::ApplyDamage(Enemy, ThunderstormDamage, GetController(), this, UDamageType::StaticClass());
+		UGameplayStatics::ApplyDamage(Enemy, ThunderstormDamage, GetController(), this, UThunderstormDamageType::StaticClass());
 	}
 }
 

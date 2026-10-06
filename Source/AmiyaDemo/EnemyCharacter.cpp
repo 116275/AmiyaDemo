@@ -8,6 +8,8 @@
 #include "Components/CapsuleComponent.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "AmiyaDemoCharacter.h"
+#include "ThunderstormDamageType.h"
+#include "Engine/DamageEvents.h"
 
 // Sets default values
 AEnemyCharacter::AEnemyCharacter()
@@ -60,6 +62,11 @@ float AEnemyCharacter::TakeDamage(float DamageAmount, FDamageEvent const& Damage
 	{
 		HandleDeath(EventInstigator, DamageCauser);
 	}
+	else if (DamageEvent.DamageTypeClass && DamageEvent.DamageTypeClass->IsChildOf(UThunderstormDamageType::StaticClass()))
+	{
+		ApplyParalysis();
+	}
+
 	return DamageApplied;
 }
 
@@ -113,7 +120,7 @@ void AEnemyCharacter::HandleDeath(AController* KillerController, AActor* DamageC
 
 void AEnemyCharacter::FireAt(AActor* Target)
 {
-	if (!Target)
+	if (!Target || bIsDead || bIsParalyzed)
 	{
 		return;
 	}
@@ -165,4 +172,36 @@ void AEnemyCharacter::SetChainLightningTargetMaterial(bool bIsTarget)
 	{
 		GetMesh()->SetOverlayMaterial(nullptr);
 	}
+}
+
+void AEnemyCharacter::ApplyParalysis()
+{
+	if (bIsDead)
+	{
+		return;
+	}
+
+	bIsParalyzed = true;
+
+	GetCharacterMovement()->StopMovementImmediately();
+	GetCharacterMovement()->DisableMovement();
+
+	if (AController* EnemyController = GetController())
+	{
+		EnemyController->StopMovement();
+	}
+
+	GetWorld()->GetTimerManager().SetTimer(ParalysisTimer, this, &AEnemyCharacter::EndParalysis, ParalysisDuration, false);
+}
+
+void AEnemyCharacter::EndParalysis()
+{
+	if (bIsDead)
+	{
+		return;
+	}
+
+	bIsParalyzed = false;
+
+	GetCharacterMovement()->SetMovementMode(MOVE_Walking);
 }

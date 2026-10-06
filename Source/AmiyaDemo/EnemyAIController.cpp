@@ -28,6 +28,13 @@ void AEnemyAIController::UpdateChase()
 		return;
 	}
 
+	AEnemyCharacter* Enemy = Cast<AEnemyCharacter>(GetPawn());
+
+	if (!Enemy || Enemy->IsDead() || Enemy->IsParalyzed())
+	{
+		return;
+	}
+
 	float DistanceToPlayer = FVector::Dist(GetPawn()->GetActorLocation(), PlayerPawn->GetActorLocation());
 
 

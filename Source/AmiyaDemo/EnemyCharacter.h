@@ -46,6 +46,16 @@ private:
 
 	void HandleDeath(AController* KillerController, AActor* DamageCauser);
 
+	bool bIsParalyzed = false;  // ÊÇ·ñ´¦ÓÚÂé±Ô×´Ì¬
+
+	UPROPERTY(EditAnywhere, Category = "Paralysis")
+	float ParalysisDuration = 5.f;
+
+	FTimerHandle ParalysisTimer;
+
+	void ApplyParalysis();
+	void EndParalysis();
+
 public:
 
 	virtual float TakeDamage(float DamageAmount, struct FDamageEvent const& DamageEvent, class AController* EventInstigator, AActor* DamageCauser) override;
@@ -79,6 +89,12 @@ public:
 		}
 
 		return GetActorLocation();
+	}
+
+	UFUNCTION(BlueprintPure, Category = "State")
+	bool IsParalyzed() const
+	{
+		return bIsParalyzed;
 	}
 
 };

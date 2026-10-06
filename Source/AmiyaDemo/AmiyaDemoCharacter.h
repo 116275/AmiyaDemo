@@ -174,7 +174,7 @@ private:  // 自定义参数
 	int32 EnergyRegen = 1;
 
 	UPROPERTY(EditAnywhere, Category = "Energy")
-	float EnergyRegenInterval = 3.f;
+	float EnergyRegenInterval = 0.5f;
 
 	FTimerHandle EnergyRegenTimer;
 
@@ -328,10 +328,10 @@ private:
 	void HandleDeath();
 
 	UPROPERTY(EditAnywhere, Category = "Chain Lightning")
-	float ThunderstormRadius = 350.f;
+	float ThunderstormRadius = 400.f;
 
 	UPROPERTY(EditAnywhere, Category = "Chain Lightning")
-	float ThunderstormDamage = 50.f;
+	float ThunderstormDamage = 25.f;
 
 	void SpawnThunderstormAt(const FVector& Center);
 
