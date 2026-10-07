@@ -33,6 +33,10 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnEnergyChanged, int32, NewEnergy);
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnChainLightningAimChanged, bool, bIsAiming);
 
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnShuttleChargesChanged, int32, NewCharges);
+
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnUltimateStateChanged, bool, bIsActive);
+
 /**
  *  A simple player-controllable third person character
  *  Implements a controllable orbiting camera
@@ -94,6 +98,9 @@ protected:  //暴露给编辑器的输入相关属性
 
 	UPROPERTY(EditAnywhere, Category = "Input")
 	UInputAction* CancelAction;
+
+	UPROPERTY(EditAnywhere, Category = "Input")
+	UInputAction* UltimateAction;
 
 public:
 
@@ -335,6 +342,58 @@ private:
 
 	void SpawnThunderstormAt(const FVector& Center);
 
+	bool bIsSprinting = false;  // 是否在冲刺状态
+
+	void RefreshMoveSpeed();
+
+	bool bIsUltimateActive = false;   // 是否在放大招状态
+
+	UPROPERTY(EditAnywhere, Category = "Ultimate")
+	int32 UltimateEnergyCost = 8;
+
+	UPROPERTY(EditAnywhere, Category = "Ultimate")
+	float UltimateDuration = 12.f;
+
+	UPROPERTY(EditAnywhere, Category = "Ultimate")
+	float UltimateMoveSpeedBonus = 800.f;
+
+	UPROPERTY(EditAnywhere, Category = "Ultimate")
+	float UltimateJumpBonus = 300.f;
+
+	FTimerHandle UltimateTimer;
+
+	void StartUltimate();
+	void EndUltimate();
+
+	float DefaultMaxAcceleration;
+	float DefaultBrakingDeceleration;
+	FRotator DefaultRotationRate;
+
+	UPROPERTY(EditAnywhere, Category = "Ultimate")
+	float UltimateMaxAcceleration = 5000.f;
+
+	UPROPERTY(EditAnywhere, Category = "Ultimate")
+	float UltimateBrakingDeceleration = 4000.f;
+
+	UPROPERTY(EditAnywhere, Category = "Ultimate")
+	float UltimateRotationRate = 900.f;
+
+	void HandleParryInput();
+	void TryShuttle();
+
+	bool PerformShuttle();
+
+	UPROPERTY(EditAnywhere, Category = "Ultimate")
+	float ShuttleDistance = 600.f;
+
+	UPROPERTY(EditAnywhere, Category = "Ultimate|Shuttle")
+	float ShuttleDamage = 50.f;
+
+	UPROPERTY(EditAnywhere, Category = "Ultimate|Shuttle")
+	float ShuttleHitRadius = 80.f;
+
+	void ApplyShuttlePathDamage(const FVector& Start, const FVector& End);
+
 public:
 
 	UPROPERTY(BlueprintAssignable, Category = "Energy")
@@ -355,5 +414,26 @@ public:
 	{
 		AddEnergy(Amount);
 	}
+
+	UPROPERTY(EditAnywhere, Category = "Ultimate")
+	int32 MaxShuttleCharges = 70;
+
+	int32 RemainingShuttleCharges = 0;
+
+	UPROPERTY(BlueprintAssignable, Category = "Ultimate")
+	FOnShuttleChargesChanged OnShuttleChargesChanged;
+
+	UFUNCTION(BlueprintPure, Category = "Ultimate")
+	int32 GetRemainingShuttleCharges() const
+	{
+		return RemainingShuttleCharges;
+	}
+
+	UFUNCTION(BlueprintPure, Category = "Ultimate")
+	float GetUltimateRemainingTime() const;
+
+	UPROPERTY(BlueprintAssignable, Category = "Ultimate")
+	FOnUltimateStateChanged OnUltimateStateChanged;
+
 };
 

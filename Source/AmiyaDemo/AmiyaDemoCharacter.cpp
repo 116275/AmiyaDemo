@@ -19,6 +19,7 @@
 #include "Materials/MaterialInstanceDynamic.h"
 #include "EnemyCharacter.h"
 #include "ThunderstormDamageType.h"
+#include "Engine/OverlapResult.h"
 
 AAmiyaDemoCharacter::AAmiyaDemoCharacter()
 {
@@ -62,6 +63,12 @@ void AAmiyaDemoCharacter::BeginPlay()
 {
 	Super::BeginPlay();
 
+	DefaultMaxAcceleration = GetCharacterMovement()->MaxAcceleration;
+
+	DefaultBrakingDeceleration = GetCharacterMovement()->BrakingDecelerationWalking;
+
+	DefaultRotationRate = GetCharacterMovement()->RotationRate;
+
 	if (StateGlowMaterial)
 	{
 		StateGlowMID = UMaterialInstanceDynamic::Create(StateGlowMaterial, this);
@@ -103,7 +110,7 @@ void AAmiyaDemoCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInput
 		// 防止意外退出
 
 		// Parry
-		EnhancedInputComponent->BindAction(ParryAction, ETriggerEvent::Started, this, &AAmiyaDemoCharacter::StartParryState);
+		EnhancedInputComponent->BindAction(ParryAction, ETriggerEvent::Started, this, &AAmiyaDemoCharacter::HandleParryInput);
 
 		// UPgrade
 		EnhancedInputComponent->BindAction(UpgradeAction, ETriggerEvent::Started, this, &AAmiyaDemoCharacter::TryUpgradeSkillState);
@@ -113,6 +120,9 @@ void AAmiyaDemoCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInput
 
 		// Cancel
 		EnhancedInputComponent->BindAction(CancelAction, ETriggerEvent::Started, this, &AAmiyaDemoCharacter::CancelCurrentAction);
+	
+		// Ultimate
+		EnhancedInputComponent->BindAction(UltimateAction, ETriggerEvent::Started, this, &AAmiyaDemoCharacter::StartUltimate);
 	}
 	else
 	{
@@ -290,12 +300,26 @@ float AAmiyaDemoCharacter::TakeDamage(float DamageAmount, FDamageEvent const& Da
 
 void AAmiyaDemoCharacter::StartSprint()
 {
-	GetCharacterMovement()->MaxWalkSpeed = SprintSpeed;
+	bIsSprinting = true;
+	RefreshMoveSpeed();
 }
 
 void AAmiyaDemoCharacter::StopSprint()
 {
-	GetCharacterMovement()->MaxWalkSpeed = WalkSpeed;
+	bIsSprinting = false;
+	RefreshMoveSpeed();
+}
+
+void AAmiyaDemoCharacter::RefreshMoveSpeed()
+{
+	float NewSpeed = bIsSprinting ? SprintSpeed : WalkSpeed;
+
+	if (bIsUltimateActive)
+	{
+		NewSpeed += UltimateMoveSpeedBonus;
+	}
+
+	GetCharacterMovement()->MaxWalkSpeed = NewSpeed;
 }
 
 void AAmiyaDemoCharacter::RegenEnergy()
@@ -899,4 +923,192 @@ void AAmiyaDemoCharacter::HandleDeath()
 	GetMesh()->WakeAllRigidBodies();
 
 	SetLifeSpan(DeathDestroyDelay);
+}
+
+void AAmiyaDemoCharacter::StartUltimate()
+{
+	if (bIsUltimateActive)
+	{
+		return;
+	}
+
+	if (!ConsumeEnergy(UltimateEnergyCost))
+	{
+		return;
+	}
+
+	bIsUltimateActive = true;
+	OnUltimateStateChanged.Broadcast(true);
+
+	RemainingShuttleCharges = MaxShuttleCharges;
+	OnShuttleChargesChanged.Broadcast(RemainingShuttleCharges);
+
+	RefreshMoveSpeed();
+
+	GetCharacterMovement()->JumpZVelocity += UltimateJumpBonus;
+
+	GetCharacterMovement()->MaxAcceleration = UltimateMaxAcceleration;
+
+	GetCharacterMovement()->BrakingDecelerationWalking = UltimateBrakingDeceleration;
+
+	GetCharacterMovement()->RotationRate = FRotator(0.f, UltimateRotationRate, 0.f);
+
+	GetWorld()->GetTimerManager().SetTimer(UltimateTimer, this, &AAmiyaDemoCharacter::EndUltimate, UltimateDuration, false);
+}
+
+void AAmiyaDemoCharacter::EndUltimate()
+{
+	if (!bIsUltimateActive)
+	{
+		return;
+	}
+
+	bIsUltimateActive = false;
+	OnUltimateStateChanged.Broadcast(false);
+
+	RemainingShuttleCharges = 0;
+	OnShuttleChargesChanged.Broadcast(RemainingShuttleCharges);
+
+	RefreshMoveSpeed();
+
+	GetCharacterMovement()->JumpZVelocity -= UltimateJumpBonus;
+
+	GetCharacterMovement()->MaxAcceleration = DefaultMaxAcceleration;
+
+	GetCharacterMovement()->BrakingDecelerationWalking = DefaultBrakingDeceleration;
+
+	GetCharacterMovement()->RotationRate = DefaultRotationRate;
+
+	GetWorld()->GetTimerManager().ClearTimer(UltimateTimer);
+}
+
+float AAmiyaDemoCharacter::GetUltimateRemainingTime() const
+{
+	if (!bIsUltimateActive)
+	{
+		return 0.f;
+	}
+
+	return FMath::Max(0.f, GetWorld()->GetTimerManager().GetTimerRemaining(UltimateTimer));
+}
+
+void AAmiyaDemoCharacter::HandleParryInput()
+{
+	if (bIsUltimateActive)
+	{
+		TryShuttle();
+		return;
+	}
+
+	StartParryState();
+}
+
+void AAmiyaDemoCharacter::TryShuttle()  // 防止卡墙扣次数
+{
+	if (!bIsUltimateActive)
+	{
+		return;
+	}
+
+	if (RemainingShuttleCharges <= 0)
+	{
+		return;
+	}
+
+	if (!PerformShuttle())
+	{
+		return;
+	}
+
+	--RemainingShuttleCharges;
+	OnShuttleChargesChanged.Broadcast(RemainingShuttleCharges);
+}
+
+bool AAmiyaDemoCharacter::PerformShuttle()
+{
+	if (!Controller)
+	{
+		return false;
+	}
+
+	FVector Direction = Controller->GetControlRotation().Vector();
+
+	Direction.Z = 0.f;
+	Direction.Normalize();
+
+	const FVector StartLocation = GetActorLocation();
+	const FVector Delta = Direction * ShuttleDistance;
+
+	FHitResult Hit;
+
+	UCapsuleComponent* Capsule = GetCapsuleComponent();
+
+	const ECollisionResponse PreviousPawnResponse = Capsule->GetCollisionResponseToChannel(ECC_Pawn);
+
+	// Shuttle 时允许穿过其他 Pawn
+	Capsule->SetCollisionResponseToChannel(ECC_Pawn, ECR_Ignore);
+
+	AddActorWorldOffset(Delta, true, &Hit, ETeleportType::None);
+
+	// 恢复原来的碰撞设置
+	Capsule->SetCollisionResponseToChannel(ECC_Pawn, PreviousPawnResponse);
+
+	const FVector EndLocation = GetActorLocation();
+
+	if (EndLocation.Equals(StartLocation, 1.f))
+	{
+		return false;
+	}
+
+	ApplyShuttlePathDamage(
+		StartLocation,
+		EndLocation
+	);
+
+	return true;
+}
+
+void AAmiyaDemoCharacter::ApplyShuttlePathDamage(const FVector& Start, const FVector& End)
+{
+	const FVector Path = End - Start;
+	const float Distance = Path.Size();
+
+	if (Distance <= KINDA_SMALL_NUMBER)
+	{
+		return;
+	}
+
+	const FVector Direction = Path / Distance;
+	const FVector Center = (Start + End) * 0.5f;
+
+	const float HalfHeight = Distance * 0.5f + ShuttleHitRadius;
+
+	const FQuat Rotation = FRotationMatrix::MakeFromZ(Direction).ToQuat();
+
+	TArray<FOverlapResult> Overlaps;
+
+	FCollisionQueryParams QueryParams;
+	QueryParams.AddIgnoredActor(this);
+
+	FCollisionObjectQueryParams ObjectParams(ECC_Pawn);
+
+	const FCollisionShape Shape = FCollisionShape::MakeCapsule(ShuttleHitRadius, HalfHeight);
+
+	GetWorld()->OverlapMultiByObjectType(Overlaps, Center, Rotation, ObjectParams, Shape, QueryParams);
+
+	TSet<AEnemyCharacter*> DamagedEnemies;
+
+	for (const FOverlapResult& Overlap : Overlaps)
+	{
+		AEnemyCharacter* Enemy = Cast<AEnemyCharacter>(Overlap.GetActor());
+
+		if (!Enemy || Enemy->IsDead() || DamagedEnemies.Contains(Enemy))
+		{
+			continue;
+		}
+
+		DamagedEnemies.Add(Enemy);
+
+		UGameplayStatics::ApplyDamage(Enemy, ShuttleDamage, GetController(), this, UDamageType::StaticClass());
+	}
 }
