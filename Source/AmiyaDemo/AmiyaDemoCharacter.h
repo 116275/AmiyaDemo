@@ -340,7 +340,7 @@ private:
 	UPROPERTY(EditAnywhere, Category = "Chain Lightning")
 	float ThunderstormDamage = 25.f;
 
-	void SpawnThunderstormAt(const FVector& Center);
+	void SpawnThunderstormAt(const FVector& Center, float NowRadius = 400.f, float NowDamage = 25.f);
 
 	bool bIsSprinting = false;  // 是否在冲刺状态
 
@@ -393,6 +393,18 @@ private:
 	float ShuttleHitRadius = 80.f;
 
 	void ApplyShuttlePathDamage(const FVector& Start, const FVector& End);
+
+	bool bIsShuttling = false;
+
+	UPROPERTY(EditAnywhere, Category = "Ultimate|Shuttle")
+	float ShuttleDuration = 0.25f;   // 穿梭期间无敌
+
+	FTimerHandle ShuttleTimer;
+
+	void StartShuttle();   // 获得无敌
+	void EndShuttle();  // 无敌结束
+
+	int32 GetChainLightningEnergyCost() const;
 
 public:
 

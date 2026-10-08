@@ -257,7 +257,7 @@ void AAmiyaDemoCharacter::PerformPunchHit()
 
 float AAmiyaDemoCharacter::TakeDamage(float DamageAmount, FDamageEvent const& DamageEvent, AController* EventInstigator, AActor* DamageCauser)
 {
-	if (bIsDead)
+	if (bIsDead || bIsShuttling)
 	{
 		return 0.f;
 	}
@@ -547,7 +547,7 @@ void AAmiyaDemoCharacter::StartChainLightningAim()
 		return;
 	}
 
-	if (CurrentEnergy < ChainLightningEnergyCost)
+	if (CurrentEnergy < GetChainLightningEnergyCost())
 	{
 		return;
 	}
@@ -587,7 +587,7 @@ void AAmiyaDemoCharacter::TryReleaseChainLightning()
 		return;
 	}
 
-	if (!ConsumeEnergy(ChainLightningEnergyCost))  // 如果能量不足
+	if (!ConsumeEnergy(GetChainLightningEnergyCost()))  // 如果能量不足
 	{
 		CancelChainLightningAim();
 		return;
@@ -809,15 +809,15 @@ void AAmiyaDemoCharacter::CastChainLightning(AEnemyCharacter* Target, ESkillPowe
 
 }
 
-void AAmiyaDemoCharacter::SpawnThunderstormAt(const FVector& StormCenter)
+void AAmiyaDemoCharacter::SpawnThunderstormAt(const FVector& StormCenter, float NowRadius, float NowDamage)
 {
-	DrawDebugSphere(GetWorld(), StormCenter, ThunderstormRadius, 24, FColor::Purple, false, 1.5f, 0, 3.f);
+	DrawDebugSphere(GetWorld(), StormCenter, NowRadius, 24, FColor::Purple, false, 1.5f, 0, 3.f);
 
 	TArray<AActor*> Enemies;
 
 	UGameplayStatics::GetAllActorsOfClass(GetWorld(), AEnemyCharacter::StaticClass(), Enemies);
 
-	const float Pow = FMath::Square(ThunderstormRadius);
+	const float Pow = FMath::Square(NowRadius);
 
 	for (AActor* Actor : Enemies)
 	{
@@ -835,7 +835,7 @@ void AAmiyaDemoCharacter::SpawnThunderstormAt(const FVector& StormCenter)
 			continue;
 		}
 
-		UGameplayStatics::ApplyDamage(Enemy, ThunderstormDamage, GetController(), this, UThunderstormDamageType::StaticClass());
+		UGameplayStatics::ApplyDamage(Enemy, NowDamage, GetController(), this, UThunderstormDamageType::StaticClass());
 	}
 }
 
@@ -903,8 +903,7 @@ void AAmiyaDemoCharacter::HandleDeath()
 	GetCharacterMovement()->StopMovementImmediately();
 	GetCharacterMovement()->DisableMovement();
 
-	if (APlayerController* PC =
-		Cast<APlayerController>(GetController()))
+	if (APlayerController* PC = Cast<APlayerController>(GetController()))
 	{
 		DisableInput(PC);
 	}
@@ -980,6 +979,8 @@ void AAmiyaDemoCharacter::EndUltimate()
 	GetCharacterMovement()->RotationRate = DefaultRotationRate;
 
 	GetWorld()->GetTimerManager().ClearTimer(UltimateTimer);
+
+	SpawnThunderstormAt(GetActorLocation(), 1200.f, 125.f);   // 大招结束释放强化后的大雷暴
 }
 
 float AAmiyaDemoCharacter::GetUltimateRemainingTime() const
@@ -1015,16 +1016,18 @@ void AAmiyaDemoCharacter::TryShuttle()  // 防止卡墙扣次数
 		return;
 	}
 
-	if (!PerformShuttle())
+	if (!PerformShuttle())  // 如果瞬移失败（卡墙），不扣次数
 	{
 		return;
 	}
+
+	StartShuttle();   // 执行无敌逻辑
 
 	--RemainingShuttleCharges;
 	OnShuttleChargesChanged.Broadcast(RemainingShuttleCharges);
 }
 
-bool AAmiyaDemoCharacter::PerformShuttle()
+bool AAmiyaDemoCharacter::PerformShuttle()   // 真正实现瞬移
 {
 	if (!Controller)
 	{
@@ -1060,10 +1063,7 @@ bool AAmiyaDemoCharacter::PerformShuttle()
 		return false;
 	}
 
-	ApplyShuttlePathDamage(
-		StartLocation,
-		EndLocation
-	);
+	ApplyShuttlePathDamage(StartLocation, EndLocation);
 
 	return true;
 }
@@ -1073,27 +1073,28 @@ void AAmiyaDemoCharacter::ApplyShuttlePathDamage(const FVector& Start, const FVe
 	const FVector Path = End - Start;
 	const float Distance = Path.Size();
 
-	if (Distance <= KINDA_SMALL_NUMBER)
+	if (Distance <= KINDA_SMALL_NUMBER)  // 防止后续计算中出现“除以零”的错误
 	{
 		return;
 	}
 
 	const FVector Direction = Path / Distance;
-	const FVector Center = (Start + End) * 0.5f;
+	const FVector Center = (Start + End) * 0.5f;   // 不会出现“贴脸漏伤”的情况
 
 	const float HalfHeight = Distance * 0.5f + ShuttleHitRadius;
 
-	const FQuat Rotation = FRotationMatrix::MakeFromZ(Direction).ToQuat();
+	const FQuat Rotation = FRotationMatrix::MakeFromZ(Direction).ToQuat();  // 将胶囊体的 Z 轴对齐到冲刺的 Direction 方向
 
 	TArray<FOverlapResult> Overlaps;
 
 	FCollisionQueryParams QueryParams;
-	QueryParams.AddIgnoredActor(this);
+	QueryParams.AddIgnoredActor(this);  // 忽略自身
 
-	FCollisionObjectQueryParams ObjectParams(ECC_Pawn);
+	FCollisionObjectQueryParams ObjectParams(ECC_Pawn);   // 表示这次物理检测只关心 Pawn 类型的物体
 
-	const FCollisionShape Shape = FCollisionShape::MakeCapsule(ShuttleHitRadius, HalfHeight);
+	const FCollisionShape Shape = FCollisionShape::MakeCapsule(ShuttleHitRadius, HalfHeight);  // 生成一个胶囊体，半径为 ShuttleHitRadius，高度为 HalfHeight
 
+	// 在指定的中心点 Center、指定的旋转角度 Rotation 下生成这个胶囊体，并把碰到的所有 Pawn 记录到 Overlaps 数组中
 	GetWorld()->OverlapMultiByObjectType(Overlaps, Center, Rotation, ObjectParams, Shape, QueryParams);
 
 	TSet<AEnemyCharacter*> DamagedEnemies;
@@ -1111,4 +1112,26 @@ void AAmiyaDemoCharacter::ApplyShuttlePathDamage(const FVector& Start, const FVe
 
 		UGameplayStatics::ApplyDamage(Enemy, ShuttleDamage, GetController(), this, UDamageType::StaticClass());
 	}
+}
+
+void AAmiyaDemoCharacter::StartShuttle()
+{
+	bIsShuttling = true;
+
+	GetWorld()->GetTimerManager().SetTimer(ShuttleTimer, this, &AAmiyaDemoCharacter::EndShuttle, ShuttleDuration, false);
+}
+
+void AAmiyaDemoCharacter::EndShuttle()
+{
+	bIsShuttling = false;
+}
+
+int32 AAmiyaDemoCharacter::GetChainLightningEnergyCost() const
+{
+	if (bIsUltimateActive)
+	{
+		return FMath::Max(0, ChainLightningEnergyCost - 2);
+	}
+
+	return ChainLightningEnergyCost;
 }
