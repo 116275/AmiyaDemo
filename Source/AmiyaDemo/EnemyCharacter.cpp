@@ -181,6 +181,13 @@ void AEnemyCharacter::ApplyParalysis()
 		return;
 	}
 
+	float Duration = ParalysisDuration * GetParalysisDurationScale();
+
+	if (Duration <= 0.f)
+	{
+		return;
+	}
+
 	bIsParalyzed = true;
 
 	GetCharacterMovement()->StopMovementImmediately();
@@ -191,17 +198,27 @@ void AEnemyCharacter::ApplyParalysis()
 		EnemyController->StopMovement();
 	}
 
-	GetWorld()->GetTimerManager().SetTimer(ParalysisTimer, this, &AEnemyCharacter::EndParalysis, ParalysisDuration, false);
+	GetWorld()->GetTimerManager().SetTimer(ParalysisTimer, this, &AEnemyCharacter::EndParalysis, Duration, false);
 }
 
 void AEnemyCharacter::EndParalysis()
 {
-	if (bIsDead)
+	ClearParalysis();
+}
+
+void AEnemyCharacter::ClearParalysis()
+{
+	GetWorld()->GetTimerManager().ClearTimer(ParalysisTimer);
+
+	if (!bIsParalyzed)
 	{
 		return;
 	}
 
 	bIsParalyzed = false;
 
-	GetCharacterMovement()->SetMovementMode(MOVE_Walking);
+	if (!bIsDead)
+	{
+		GetCharacterMovement()->SetMovementMode(MOVE_Walking);
+	}
 }

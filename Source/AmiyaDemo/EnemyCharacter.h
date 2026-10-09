@@ -25,11 +25,6 @@ public:
 
 private:
 
-	float CurrentHealth = 100.0f;
-
-	UPROPERTY(EditAnywhere, Category = "Health")
-	float MaxHealth = 200.0f;
-
 	float FireRange = 1200.f;
 
 	float FireInterval = 1.f;
@@ -43,8 +38,6 @@ private:
 
 	UPROPERTY(EditAnywhere, Category = "Death")
 	float DeathDestroyDelay = 5.f;
-
-	void HandleDeath(AController* KillerController, AActor* DamageCauser);
 
 	bool bIsParalyzed = false;  // 是否处于麻痹状态
 
@@ -96,5 +89,21 @@ public:
 	{
 		return bIsParalyzed;
 	}
+
+protected:
+
+	float CurrentHealth = 100.0f;
+
+	UPROPERTY(EditAnywhere, Category = "Health")
+	float MaxHealth = 200.0f;
+
+	virtual void HandleDeath(AController* KillerController, AActor* DamageCauser);
+
+	virtual float GetParalysisDurationScale() const   // 方便后面 Boss 加麻痹抗性
+	{
+		return 1.f;
+	}
+
+	void ClearParalysis();
 
 };
