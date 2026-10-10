@@ -40,18 +40,18 @@ void AEnemyAIController::UpdateChase()
 
 	if (CombatState == EEnemyCombatState::Chasing)
 	{
-		if (DistanceToPlayer <= StartFireDistance)
+		if (DistanceToPlayer <= Enemy->GetAttackDistance())
 		{
 			StopMovement();
-			StartFire();
+			StartAttack();
 
-			CombatState = EEnemyCombatState::Firing;
+			CombatState = EEnemyCombatState::Attacking;
 		}
 		else
 		{
 			/*MoveToActor(PlayerPawn, AcceptDistance, false);*/
 
-			const EPathFollowingRequestResult::Type MoveResult = MoveToActor(PlayerPawn, AcceptDistance, false);
+			const EPathFollowingRequestResult::Type MoveResult = MoveToActor(PlayerPawn, Enemy->GetMoveAcceptanceRadius(), false);
 
 			if (MoveResult == EPathFollowingRequestResult::Failed)
 			{
@@ -59,13 +59,13 @@ void AEnemyAIController::UpdateChase()
 			}
 		}
 	}
-	else if (CombatState == EEnemyCombatState::Firing)
+	else if (CombatState == EEnemyCombatState::Attacking)
 	{
-		if (DistanceToPlayer >= ResumeChaseDistance)
+		if (DistanceToPlayer >= Enemy->GetResumeChaseDistance())
 		{
-			StopFire();
+			StopAttack();
 
-			const EPathFollowingRequestResult::Type MoveResult = MoveToActor(PlayerPawn, AcceptDistance, false);
+			const EPathFollowingRequestResult::Type MoveResult = MoveToActor(PlayerPawn, Enemy->GetMoveAcceptanceRadius(), false);
 
 			if (MoveResult == EPathFollowingRequestResult::Failed)
 			{
@@ -76,42 +76,54 @@ void AEnemyAIController::UpdateChase()
 		}
 		else
 		{
-			if (!GetWorld()->GetTimerManager().IsTimerActive(FireTimer))
+			if (!GetWorld()->GetTimerManager().IsTimerActive(AttackTimer))
 			{
-				StartFire();
+				StartAttack();
 			}
 		}
 	}
 }
 
-void AEnemyAIController::StartFire()
+void AEnemyAIController::StartAttack()
 {
-	if (GetWorld()->GetTimerManager().IsTimerActive(FireTimer))
+	if (GetWorld()->GetTimerManager().IsTimerActive(AttackTimer))
 	{
 		return;
 	}
 
-	FireOnce();
-
-	GetWorld()->GetTimerManager().SetTimer(FireTimer, this, &AEnemyAIController::FireOnce, FireInterval, true);
-
+	AttackOnce();
 }
 
-void AEnemyAIController::StopFire()
+void AEnemyAIController::StopAttack()
 {
-	GetWorld()->GetTimerManager().ClearTimer(FireTimer);
+	GetWorld()->GetTimerManager().ClearTimer(AttackTimer);
 }
 
-void AEnemyAIController::FireOnce()
+void AEnemyAIController::AttackOnce()
 {
 	APawn* PlayerPawn = UGameplayStatics::GetPlayerPawn(GetWorld(), 0);
 
 	AEnemyCharacter* Enemy = Cast<AEnemyCharacter>(GetPawn());
 
-	if (PlayerPawn && Enemy)
+	if (!PlayerPawn || !Enemy)
 	{
-		Enemy->FireAt(PlayerPawn);
+		return;
 	}
+
+	if (Enemy->IsDead() || Enemy->IsParalyzed())
+	{
+		return;
+	}
+
+	Enemy->AttackTarget(PlayerPawn);
+
+	GetWorld()->GetTimerManager().SetTimer(
+		AttackTimer,
+		this,
+		&AEnemyAIController::AttackOnce,
+		Enemy->GetAttackInterval(),
+		false
+	);
 }
 
 bool AEnemyAIController::TryMoveNearPlayer(APawn* PlayerPawn)

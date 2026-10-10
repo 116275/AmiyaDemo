@@ -324,7 +324,7 @@ void AAmiyaDemoCharacter::RefreshMoveSpeed()
 
 void AAmiyaDemoCharacter::RegenEnergy()
 {
-	AddEnergy(1);
+	AddEnergy(EnergyRegen);
 }
 
 void AAmiyaDemoCharacter::AddEnergy(int32 Amount)

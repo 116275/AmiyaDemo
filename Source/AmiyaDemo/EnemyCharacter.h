@@ -53,7 +53,7 @@ public:
 
 	virtual float TakeDamage(float DamageAmount, struct FDamageEvent const& DamageEvent, class AController* EventInstigator, AActor* DamageCauser) override;
 
-	void FireAt(AActor* Target);
+	virtual void AttackTarget(AActor* Target);
 
 	UFUNCTION(BlueprintPure, Category = "Health")
 	float GetCurrentHealth() const
@@ -105,5 +105,27 @@ protected:
 	}
 
 	void ClearParalysis();
+
+public:
+
+	virtual float GetAttackDistance() const
+	{
+		return 700.f;
+	}
+
+	virtual float GetResumeChaseDistance() const
+	{
+		return 900.f;
+	}
+
+	virtual float GetAttackInterval() const
+	{
+		return 1.f;
+	}
+
+	virtual float GetMoveAcceptanceRadius() const
+	{
+		return 400.f;
+	}
 
 };

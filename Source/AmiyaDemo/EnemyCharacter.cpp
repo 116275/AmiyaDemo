@@ -118,7 +118,7 @@ void AEnemyCharacter::HandleDeath(AController* KillerController, AActor* DamageC
 	}
 }
 
-void AEnemyCharacter::FireAt(AActor* Target)
+void AEnemyCharacter::AttackTarget(AActor* Target)
 {
 	if (!Target || bIsDead || bIsParalyzed)
 	{

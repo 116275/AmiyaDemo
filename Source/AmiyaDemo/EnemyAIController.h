@@ -9,7 +9,7 @@
 enum class EEnemyCombatState
 {
 	Chasing,
-	Firing
+	Attacking
 };
 
 const float SearchRadii[] =
@@ -29,15 +29,15 @@ private:
 
 	float ChaseUpdateInterval = 0.2f;
 
-	float ResumeChaseDistance = 900.f;
+	float ResumeChaseDistance = 900.f;  // Enemy->GetResumeChaseDistance()
 
-	float StartFireDistance = 700.f;
+	float StartAttackDistance = 700.f;  // Enemy->GetAttackDistance()
 
-	float FireInterval = 1.f;
+	float AttackInterval = 1.f;
 
 	float AcceptDistance = 400.f;
 
-	FTimerHandle FireTimer;
+	FTimerHandle AttackTimer;
 
 	EEnemyCombatState CombatState = EEnemyCombatState::Chasing;
 
@@ -45,11 +45,11 @@ private:
 
 public:
 
-	void StartFire();
+	void StartAttack();
 
-	void StopFire();
+	void StopAttack();
 
-	void FireOnce();
+	void AttackOnce();
 
 	void UpdateChase();
 
