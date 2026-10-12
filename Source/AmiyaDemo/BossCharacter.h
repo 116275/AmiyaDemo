@@ -82,4 +82,6 @@ private:
 	UPROPERTY(EditAnywhere, Category = "Boss|Combat")
 	float Phase2MoveSpeed = 950.f;
 
+	void IgnoreMovementCollisionWithEnemy(AEnemyCharacter* Enemy);
+
 };

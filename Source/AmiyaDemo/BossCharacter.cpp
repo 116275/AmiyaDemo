@@ -4,6 +4,7 @@
 #include "BossCharacter.h"
 #include "Kismet/GameplayStatics.h"
 #include "GameFramework/CharacterMovementComponent.h"
+#include "Components/CapsuleComponent.h"
 
 ABossCharacter::ABossCharacter()
 {
@@ -17,6 +18,25 @@ void ABossCharacter::BeginPlay()
 
 	MaxHealth = Phase1MaxHealth;
 	CurrentHealth = MaxHealth;
+
+	TArray<AActor*> Enemies;
+
+	UGameplayStatics::GetAllActorsOfClass(
+		GetWorld(),
+		AEnemyCharacter::StaticClass(),
+		Enemies
+	);
+
+	for (AActor* Actor : Enemies)
+	{
+		AEnemyCharacter* Enemy = Cast<AEnemyCharacter>(Actor);
+
+		if (Enemy && Enemy != this)
+		{
+			IgnoreMovementCollisionWithEnemy(Enemy);
+		}
+	}
+
 }
 
 void ABossCharacter::HandleDeath(
@@ -160,4 +180,15 @@ void ABossCharacter::PerformPunchHit()
 		this,
 		UDamageType::StaticClass()
 	);
+}
+
+void ABossCharacter::IgnoreMovementCollisionWithEnemy(AEnemyCharacter* Enemy)
+{
+	if (!Enemy || Enemy == this)
+	{
+		return;
+	}
+
+	GetCapsuleComponent()->IgnoreActorWhenMoving(Enemy, true);
+	Enemy->GetCapsuleComponent()->IgnoreActorWhenMoving(this, true);
 }
