@@ -94,6 +94,23 @@ void ABossCharacter::AttackTarget(AActor* Target)
 		return;
 	}
 
+	FVector ToTarget = Target->GetActorLocation() - GetActorLocation();
+
+	ToTarget.Z = 0.f;
+
+	if (!ToTarget.IsNearlyZero())
+	{
+		const FRotator TargetRotation = ToTarget.Rotation();
+
+		SetActorRotation(
+			FRotator(
+				0.f,
+				TargetRotation.Yaw,
+				0.f
+			)
+		);
+	}
+
 	const float Duration = AnimInstance->Montage_Play(PunchMontage);
 
 	if (Duration <= 0.f)
