@@ -5,6 +5,7 @@
 #include "Kismet/GameplayStatics.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Components/CapsuleComponent.h"
+#include "NavigationSystem.h"
 
 ABossCharacter::ABossCharacter()
 {
@@ -13,6 +14,8 @@ ABossCharacter::ABossCharacter()
 void ABossCharacter::BeginPlay()
 {
 	Super::BeginPlay();
+
+	StartSummoning();
 
 	CurrentPhase = EBossPhase::Phase1;
 
@@ -208,4 +211,124 @@ void ABossCharacter::IgnoreMovementCollisionWithEnemy(AEnemyCharacter* Enemy)
 
 	GetCapsuleComponent()->IgnoreActorWhenMoving(Enemy, true);
 	Enemy->GetCapsuleComponent()->IgnoreActorWhenMoving(this, true);
+}
+
+void ABossCharacter::SummonMinions()
+{
+	if (!MinionClass || IsDead())
+	{
+		return;
+	}
+
+	UNavigationSystemV1* NavSystem = UNavigationSystemV1::GetCurrent(GetWorld());
+
+	if (!NavSystem)
+	{
+		return;
+	}
+
+	const int32 Count = GetSummonCount();
+	int32 CurrentCount = 0;
+
+	for (int32 i = 1; i <= Count * 2 && CurrentCount < Count; ++i)
+	{
+		FNavLocation SpawnLocation;
+
+		const bool bFoundLocation =
+			NavSystem->GetRandomReachablePointInRadius(
+				GetActorLocation(),
+				SummonRadius,
+				SpawnLocation
+			);
+
+		if (!bFoundLocation)
+		{
+			continue;
+		}
+
+		FActorSpawnParameters SpawnParams;
+
+		AEnemyCharacter* SpawnedEnemy =
+			GetWorld()->SpawnActor<AEnemyCharacter>(
+				MinionClass,
+				SpawnLocation.Location,
+				FRotator::ZeroRotator,
+				SpawnParams
+			);
+
+		if (!SpawnedEnemy)
+		{
+			continue;
+		}
+
+		SpawnedEnemy->SetCountsTowardKillGoal(false);
+
+		CurrentMinions.Add(SpawnedEnemy);
+
+		IgnoreMovementCollisionWithEnemy(SpawnedEnemy);
+
+		++CurrentCount;
+	}
+
+	GetWorld()->GetTimerManager().SetTimer(
+		AbsorbTimer,
+		this,
+		&ABossCharacter::AbsorbRemainingMinions,
+		AbsorbDelay,
+		false
+	);
+}
+
+void ABossCharacter::StartSummoning()
+{
+	SummonMinions();
+
+	GetWorld()->GetTimerManager().SetTimer(
+		SummonTimer,
+		this,
+		&ABossCharacter::SummonMinions,
+		SummonInterval,
+		true
+	);
+}
+
+void ABossCharacter::AbsorbRemainingMinions()
+{
+	int32 ActiveCount = 0;
+
+	for (const TWeakObjectPtr<AEnemyCharacter>& MinionPtr : CurrentMinions)
+	{
+		if (!MinionPtr.IsValid())
+		{
+			continue;
+		}
+
+		AEnemyCharacter* Minion = MinionPtr.Get();
+
+		if (!Minion || Minion->IsDead())
+		{
+			continue;
+		}
+
+		Minion->BeConsumedByBoss();
+		++ActiveCount;
+	}
+
+	if (ActiveCount > 0)
+	{
+		PunchDamage += AbsorbAttackBonus * ActiveCount;
+
+		const float HealAmount =
+			MaxHealth *
+			AbsorbHealPercent *
+			ActiveCount;
+
+		CurrentHealth = FMath::Clamp(
+			CurrentHealth + HealAmount,
+			0.f,
+			MaxHealth
+		);
+	}
+
+	CurrentMinions.Empty();
 }

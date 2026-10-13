@@ -79,9 +79,12 @@ void AEnemyCharacter::HandleDeath(AController* KillerController, AActor* DamageC
 
 	bIsDead = true;
 
-	if (AAmiyaDemoGameMode* CurrentGameMode = Cast<AAmiyaDemoGameMode>(GetWorld()->GetAuthGameMode()))
+	if (bCountsTowardKillGoal)
 	{
-		CurrentGameMode->AddKill();
+		if (AAmiyaDemoGameMode* CurrentGameMode = Cast<AAmiyaDemoGameMode>(GetWorld()->GetAuthGameMode()))
+		{
+			CurrentGameMode->AddKill();
+		}
 	}
 
 	// Í£Ö¹½ÇÉ«ÒÆ¶¯
@@ -221,4 +224,16 @@ void AEnemyCharacter::ClearParalysis()
 	{
 		GetCharacterMovement()->SetMovementMode(MOVE_Walking);
 	}
+}
+
+void AEnemyCharacter::BeConsumedByBoss()
+{
+	if (IsDead())
+	{
+		return;
+	}
+
+	CurrentHealth = 0;
+
+	HandleDeath(nullptr, nullptr);
 }

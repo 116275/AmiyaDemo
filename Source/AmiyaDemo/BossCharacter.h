@@ -80,8 +80,42 @@ private:
 	float GetMoveAcceptanceRadius() const override;
 
 	UPROPERTY(EditAnywhere, Category = "Boss|Combat")
-	float Phase2MoveSpeed = 950.f;
+	float Phase2MoveSpeed = 1000.f;
 
 	void IgnoreMovementCollisionWithEnemy(AEnemyCharacter* Enemy);
+
+	UPROPERTY(EditAnywhere, Category = "Boss|Summon")
+	TSubclassOf<AEnemyCharacter> MinionClass;
+
+	UPROPERTY(EditAnywhere, Category = "Boss|Summon")
+	float SummonInterval = 15.f;
+
+	UPROPERTY(EditAnywhere, Category = "Boss|Summon")
+	float SummonRadius = 600.f;
+
+	FTimerHandle SummonTimer;
+
+	TArray<TWeakObjectPtr<AEnemyCharacter>> CurrentMinions;
+
+	void StartSummoning();
+	void SummonMinions();
+
+	int32 GetSummonCount() const
+	{
+		return CurrentPhase == EBossPhase::Phase1 ? 3 : 5;
+	}
+
+	UPROPERTY(EditAnywhere, Category = "Boss|Summon")
+	float AbsorbDelay = 10.f;
+
+	FTimerHandle AbsorbTimer;
+
+	void AbsorbRemainingMinions();
+
+	UPROPERTY(EditAnywhere, Category = "Boss|Absorb")
+	float AbsorbAttackBonus = 25.f;
+
+	UPROPERTY(EditAnywhere, Category = "Boss|Absorb")
+	float AbsorbHealPercent = 0.2f;
 
 };

@@ -49,6 +49,8 @@ private:
 	void ApplyParalysis();
 	void EndParalysis();
 
+	bool bCountsTowardKillGoal = true;
+
 public:
 
 	virtual float TakeDamage(float DamageAmount, struct FDamageEvent const& DamageEvent, class AController* EventInstigator, AActor* DamageCauser) override;
@@ -90,6 +92,11 @@ public:
 		return bIsParalyzed;
 	}
 
+	void SetCountsTowardKillGoal(bool bCounts)
+	{
+		bCountsTowardKillGoal = bCounts;
+	}
+
 protected:
 
 	float CurrentHealth = 100.0f;
@@ -127,5 +134,7 @@ public:
 	{
 		return 400.f;
 	}
+
+	void BeConsumedByBoss();
 
 };
