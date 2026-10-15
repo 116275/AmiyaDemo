@@ -162,8 +162,8 @@ public:
 
 private:  // 自定义参数
 
-	float CurrentHealth = 300.f;
-	float MaxHealth = 300.f;
+	float CurrentHealth = 1000.f;
+	float MaxHealth = 1000.f;
 
 	float StartOffset = 50.f;
 	float AttackRange = 100.f;
@@ -171,7 +171,7 @@ private:  // 自定义参数
 	float Damage = 50.f;
 
 	float RegenTime = 2.f;   // 多少秒后开始回血
-	float RegenAmount = 10.f;   // 每秒回血量
+	float RegenAmountPercent = 2.f;   // 每秒回血百分比
 	float TimeSinceLastDamage = 0.f;  // 离上一次受伤隔了多久
 
 	UPROPERTY(EditAnywhere, Category = "Energy")

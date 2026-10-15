@@ -76,6 +76,12 @@ public:
 		return bIsDead;
 	}
 
+	UFUNCTION(BlueprintPure, Category = "State")
+	virtual bool IsTargetable() const
+	{
+		return !bIsDead;
+	}
+
 	FVector GetBodyLocation() const   // 防止尸体滚动造成CapsuleComponent的中心点偏移，使用Mesh的Bounds.Origin作为身体位置
 	{
 		if (GetMesh())

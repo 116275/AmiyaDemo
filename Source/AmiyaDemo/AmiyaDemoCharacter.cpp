@@ -137,7 +137,7 @@ void AAmiyaDemoCharacter::Tick(float Delta)
 
 	if (CurrentHealth < MaxHealth && TimeSinceLastDamage >= RegenTime)
 	{
-		CurrentHealth = FMath::Clamp(CurrentHealth + RegenAmount * Delta, 0.f, MaxHealth);
+		CurrentHealth = FMath::Clamp(CurrentHealth + RegenAmountPercent / 100 * MaxHealth * Delta, 0.f, MaxHealth);
 	}
 
 	if (bIsChainLightningAiming)
@@ -679,7 +679,7 @@ void AAmiyaDemoCharacter::UpdateChainLightningTarget()
 	{
 		AEnemyCharacter* Enemy = Cast<AEnemyCharacter>(Actor);
 
-		if (!IsValid(Enemy) || Enemy->IsDead())
+		if (!IsValid(Enemy) || !Enemy->IsTargetable())
 		{
 			continue;
 		}
@@ -823,7 +823,7 @@ void AAmiyaDemoCharacter::SpawnThunderstormAt(const FVector& StormCenter, float 
 	{
 		AEnemyCharacter* Enemy = Cast<AEnemyCharacter>(Actor);
 
-		if (!IsValid(Enemy) || Enemy->IsDead())
+		if (!IsValid(Enemy) || !Enemy->IsTargetable())
 		{
 			continue;
 		}
@@ -861,7 +861,7 @@ AEnemyCharacter* AAmiyaDemoCharacter::FindNextChainLightningTarget(AEnemyCharact
 	{
 		AEnemyCharacter* Enemy = Cast<AEnemyCharacter>(Actor);
 
-		if (!IsValid(Enemy) || Enemy == FromTarget || Enemy->IsDead())
+		if (!IsValid(Enemy) || Enemy == FromTarget || !Enemy->IsTargetable())
 		{
 			continue;
 		}
@@ -1103,7 +1103,7 @@ void AAmiyaDemoCharacter::ApplyShuttlePathDamage(const FVector& Start, const FVe
 	{
 		AEnemyCharacter* Enemy = Cast<AEnemyCharacter>(Overlap.GetActor());
 
-		if (!Enemy || Enemy->IsDead() || DamagedEnemies.Contains(Enemy))
+		if (!Enemy || !Enemy->IsTargetable() || DamagedEnemies.Contains(Enemy))
 		{
 			continue;
 		}

@@ -38,6 +38,13 @@ protected:
 
 	virtual void AttackTarget(AActor* Target) override;
 
+	virtual float TakeDamage(
+		float DamageAmount,
+		const FDamageEvent& DamageEvent,
+		AController* EventInstigator,
+		AActor* DamageCauser
+	) override;
+
 private:
 
 	UPROPERTY(EditAnywhere, Category = "Boss")
@@ -117,5 +124,34 @@ private:
 
 	UPROPERTY(EditAnywhere, Category = "Boss|Absorb")
 	float AbsorbHealPercent = 0.2f;
+
+	bool bIsTimeDeleting = false;
+
+	UPROPERTY(EditAnywhere, Category = "Boss|TimeDeletion")
+	float TimeDeletionDuration = 1.5f;   // ·ÅÂýÇ°
+
+	UPROPERTY(EditAnywhere, Category = "Boss|TimeDeletion")
+	float GlobalTimeScale = 0.25f;
+
+	FTimerHandle TimeDeletionTimer;
+
+	void StartTimeDeletion();
+	void EndTimeDeletion();
+
+	UPROPERTY(EditAnywhere, Category = "Boss|TimeDeletion")
+	float TimeDeletionInitialDelay = 5.f;
+
+	UPROPERTY(EditAnywhere, Category = "Boss|TimeDeletion")
+	float TimeDeletionCooldown = 8.f;
+
+	FTimerHandle TimeDeletionCooldownTimer;
+
+	void InitialTimeDeletion(float Delay);
+	void TryStartTimeDeletion();
+
+	virtual bool IsTargetable() const override;
+
+	ECollisionResponse SavedCapsuleVisibilityResponse;
+	ECollisionResponse SavedMeshVisibilityResponse;
 
 };

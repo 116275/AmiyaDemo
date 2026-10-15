@@ -66,6 +66,8 @@ void ABossCharacter::EnterPhase2()
 	ClearParalysis();
 
 	GetCharacterMovement()->MaxWalkSpeed = Phase2MoveSpeed;
+
+	InitialTimeDeletion(TimeDeletionInitialDelay);
 }
 
 float ABossCharacter::GetParalysisDurationScale() const
@@ -80,7 +82,7 @@ float ABossCharacter::GetParalysisDurationScale() const
 
 void ABossCharacter::AttackTarget(AActor* Target)
 {
-	if (!Target || IsDead() || IsParalyzed() || bIsAttacking)
+	if (!Target || IsDead() || IsParalyzed() || bIsAttacking || bIsTimeDeleting)
 	{
 		return;
 	}
@@ -331,4 +333,152 @@ void ABossCharacter::AbsorbRemainingMinions()
 	}
 
 	CurrentMinions.Empty();
+}
+
+void ABossCharacter::StartTimeDeletion()
+{
+	if (bIsTimeDeleting || IsDead() || CurrentPhase != EBossPhase::Phase2)
+	{
+		return;
+	}
+
+	bIsTimeDeleting = true;
+
+	UGameplayStatics::SetGlobalTimeDilation(
+		GetWorld(),
+		GlobalTimeScale
+	);
+
+	CustomTimeDilation = 1.f / GlobalTimeScale;
+
+	SetActorHiddenInGame(true);
+
+	SavedCapsuleVisibilityResponse = GetCapsuleComponent()->GetCollisionResponseToChannel(ECC_Visibility);
+
+	SavedMeshVisibilityResponse = GetMesh()->GetCollisionResponseToChannel(ECC_Visibility);
+
+	GetCapsuleComponent()->SetCollisionResponseToChannel(
+		ECC_Visibility,
+		ECR_Ignore
+	);
+
+	GetMesh()->SetCollisionResponseToChannel(
+		ECC_Visibility,
+		ECR_Ignore
+	);
+
+	GetWorld()->GetTimerManager().SetTimer(
+		TimeDeletionTimer,
+		this,
+		&ABossCharacter::EndTimeDeletion,
+		TimeDeletionDuration,
+		false
+	);
+
+}
+
+void ABossCharacter::EndTimeDeletion()
+{
+	if (!bIsTimeDeleting)
+	{
+		return;
+	}
+
+	bIsTimeDeleting = false;
+
+	UGameplayStatics::SetGlobalTimeDilation(
+		GetWorld(),
+		1.f
+	);
+
+	CustomTimeDilation = 1.f;
+
+	SetActorHiddenInGame(false);
+
+	GetCapsuleComponent()->SetCollisionResponseToChannel(
+		ECC_Visibility,
+		SavedCapsuleVisibilityResponse
+	);
+
+	GetMesh()->SetCollisionResponseToChannel(
+		ECC_Visibility,
+		SavedMeshVisibilityResponse
+	);
+
+	GetWorld()->GetTimerManager().ClearTimer(TimeDeletionTimer);
+
+	// ³¢ÊÔÍµÏ®
+	APawn* PlayerPawn = UGameplayStatics::GetPlayerPawn(GetWorld(), 0);
+
+	if (!PlayerPawn)
+	{
+		return;
+	}
+
+	const float Distance =
+		FVector::Dist(
+			GetActorLocation(),
+			PlayerPawn->GetActorLocation()
+		);
+
+	if (Distance <= GetAttackDistance())
+	{
+		if (AController* BossController = GetController())
+		{
+			BossController->StopMovement();
+		}
+
+		AttackTarget(PlayerPawn);
+	}
+
+
+	if (!IsDead() && CurrentPhase == EBossPhase::Phase2)
+	{
+		InitialTimeDeletion(TimeDeletionCooldown);
+	}
+}
+
+void ABossCharacter::InitialTimeDeletion(float Delay)
+{
+	GetWorld()->GetTimerManager().SetTimer(
+		TimeDeletionCooldownTimer,
+		this,
+		&ABossCharacter::TryStartTimeDeletion,
+		Delay,
+		false
+	);
+}
+
+void ABossCharacter::TryStartTimeDeletion()
+{
+	if (bIsTimeDeleting || IsDead() || CurrentPhase != EBossPhase::Phase2)
+	{
+		return;
+	}
+
+	StartTimeDeletion();
+}
+
+bool ABossCharacter::IsTargetable() const
+{
+	return !IsDead() && !bIsTimeDeleting;
+}
+
+float ABossCharacter::TakeDamage(
+	float DamageAmount,
+	const FDamageEvent& DamageEvent,
+	AController* EventInstigator,
+	AActor* DamageCauser)
+{
+	if (bIsTimeDeleting)
+	{
+		return 0.f;
+	}
+
+	return Super::TakeDamage(
+		DamageAmount,
+		DamageEvent,
+		EventInstigator,
+		DamageCauser
+	);
 }
