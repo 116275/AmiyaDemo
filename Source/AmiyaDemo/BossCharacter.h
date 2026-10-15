@@ -13,6 +13,12 @@ enum class EBossPhase : uint8
 	Phase2
 };
 
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(
+	FOnTimeDeletionChanged,
+	bool,
+	IsActive
+);
+
 /**
  * 
  */
@@ -24,6 +30,9 @@ class AMIYADEMO_API ABossCharacter : public AEnemyCharacter
 public:
 
 	ABossCharacter();
+
+	UPROPERTY(BlueprintAssignable, Category = "Boss|TimeDeletion")
+	FOnTimeDeletionChanged OnTimeDeletionChanged;
 
 protected:
 

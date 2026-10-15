@@ -344,6 +344,8 @@ void ABossCharacter::StartTimeDeletion()
 
 	bIsTimeDeleting = true;
 
+	OnTimeDeletionChanged.Broadcast(true);
+
 	UGameplayStatics::SetGlobalTimeDilation(
 		GetWorld(),
 		GlobalTimeScale
@@ -385,6 +387,8 @@ void ABossCharacter::EndTimeDeletion()
 	}
 
 	bIsTimeDeleting = false;
+
+	OnTimeDeletionChanged.Broadcast(false);
 
 	UGameplayStatics::SetGlobalTimeDilation(
 		GetWorld(),
