@@ -162,8 +162,8 @@ public:
 
 private:  // 自定义参数
 
-	float CurrentHealth = 1000.f;
-	float MaxHealth = 1000.f;
+	float CurrentHealth = 10000.f;
+	float MaxHealth = 10000.f;
 
 	float StartOffset = 50.f;
 	float AttackRange = 100.f;

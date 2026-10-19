@@ -353,19 +353,37 @@ void ABossCharacter::StartTimeDeletion()
 
 	CustomTimeDilation = 1.f / GlobalTimeScale;
 
-	SetActorHiddenInGame(true);
+	SetActorHiddenInGame(true);  // 不可见
 
 	SavedCapsuleVisibilityResponse = GetCapsuleComponent()->GetCollisionResponseToChannel(ECC_Visibility);
 
 	SavedMeshVisibilityResponse = GetMesh()->GetCollisionResponseToChannel(ECC_Visibility);
 
-	GetCapsuleComponent()->SetCollisionResponseToChannel(
+	GetCapsuleComponent()->SetCollisionResponseToChannel(   // 不可被射线检测
 		ECC_Visibility,
 		ECR_Ignore
 	);
 
-	GetMesh()->SetCollisionResponseToChannel(
+	GetMesh()->SetCollisionResponseToChannel(   // 不可被射线检测
 		ECC_Visibility,
+		ECR_Ignore
+	);
+
+	SavedPawnCollisionResponse = GetCapsuleComponent()->GetCollisionResponseToChannel(ECC_Pawn);
+
+	GetCapsuleComponent()->SetCollisionResponseToChannel(ECC_Pawn, ECR_Ignore);
+
+	SavedCapsuleCameraResponse = GetCapsuleComponent()->GetCollisionResponseToChannel(ECC_Camera);
+
+	SavedMeshCameraResponse = GetMesh()->GetCollisionResponseToChannel(ECC_Camera);
+
+	GetCapsuleComponent()->SetCollisionResponseToChannel(
+		ECC_Camera,
+		ECR_Ignore
+	);
+
+	GetMesh()->SetCollisionResponseToChannel(
+		ECC_Camera,
 		ECR_Ignore
 	);
 
@@ -407,6 +425,18 @@ void ABossCharacter::EndTimeDeletion()
 	GetMesh()->SetCollisionResponseToChannel(
 		ECC_Visibility,
 		SavedMeshVisibilityResponse
+	);
+
+	GetCapsuleComponent()->SetCollisionResponseToChannel(ECC_Pawn, SavedPawnCollisionResponse);
+
+	GetCapsuleComponent()->SetCollisionResponseToChannel(
+		ECC_Camera,
+		SavedCapsuleCameraResponse
+	);
+
+	GetMesh()->SetCollisionResponseToChannel(
+		ECC_Camera,
+		SavedMeshCameraResponse
 	);
 
 	GetWorld()->GetTimerManager().ClearTimer(TimeDeletionTimer);

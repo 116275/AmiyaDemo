@@ -104,7 +104,7 @@ private:
 	TSubclassOf<AEnemyCharacter> MinionClass;
 
 	UPROPERTY(EditAnywhere, Category = "Boss|Summon")
-	float SummonInterval = 15.f;
+	float SummonInterval = 6.5f;
 
 	UPROPERTY(EditAnywhere, Category = "Boss|Summon")
 	float SummonRadius = 600.f;
@@ -122,7 +122,7 @@ private:
 	}
 
 	UPROPERTY(EditAnywhere, Category = "Boss|Summon")
-	float AbsorbDelay = 10.f;
+	float AbsorbDelay = 4.f;
 
 	FTimerHandle AbsorbTimer;
 
@@ -148,10 +148,10 @@ private:
 	void EndTimeDeletion();
 
 	UPROPERTY(EditAnywhere, Category = "Boss|TimeDeletion")
-	float TimeDeletionInitialDelay = 5.f;
+	float TimeDeletionInitialDelay = 2.f;
 
 	UPROPERTY(EditAnywhere, Category = "Boss|TimeDeletion")
-	float TimeDeletionCooldown = 8.f;
+	float TimeDeletionCooldown = 5.f;
 
 	FTimerHandle TimeDeletionCooldownTimer;
 
@@ -163,4 +163,8 @@ private:
 	ECollisionResponse SavedCapsuleVisibilityResponse;
 	ECollisionResponse SavedMeshVisibilityResponse;
 
+	ECollisionResponse SavedPawnCollisionResponse;
+
+	ECollisionResponse SavedCapsuleCameraResponse;
+	ECollisionResponse SavedMeshCameraResponse;
 };
