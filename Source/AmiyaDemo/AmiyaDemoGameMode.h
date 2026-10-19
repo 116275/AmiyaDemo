@@ -9,6 +9,13 @@
 #include "AmiyaDemoGameMode.generated.h"
 
 class AACoinActor;
+class ABossCharacter;
+
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(
+	FOnBossSpawned,
+	ABossCharacter*,
+	Boss
+);
 
 UCLASS(abstract)
 class AAmiyaDemoGameMode : public AGameModeBase
@@ -117,5 +124,17 @@ public:
 	void StartEnemyRefill();
 
 	void TryRefillEnemy();
+
+	UPROPERTY(BlueprintAssignable, Category = "Boss|Spawn")
+	FOnBossSpawned OnBossSpawned;
+
+	UPROPERTY()
+	TObjectPtr<ABossCharacter> CurrentBoss = nullptr;
+
+	UFUNCTION(BlueprintPure, Category = "Boss|Spawn")
+	ABossCharacter* GetCurrentBoss() const
+	{
+		return CurrentBoss;
+	}
 
 };

@@ -252,5 +252,7 @@ bool AAmiyaDemoGameMode::SpawnBoss()  // Éú³ÉBoss
 	}
 
 	bBossSpawned = true;
+	CurrentBoss = Boss;
+	OnBossSpawned.Broadcast(Boss);
 	return true;
 }
