@@ -9,6 +9,7 @@
 #include "Components/CapsuleComponent.h"
 #include "EnemySpawnVolume.h"
 #include "TimerManager.h"
+#include "Engine/TargetPoint.h"
 
 AAmiyaDemoGameMode::AAmiyaDemoGameMode()
 {
@@ -53,6 +54,7 @@ void AAmiyaDemoGameMode::AddCoin()  // 拾取到了金币
 		SpawnCoin();
 	}
 
+	TryStartBossFight();
 }
 
 bool AAmiyaDemoGameMode::SpawnCoin()  // 补充一枚金币
@@ -102,6 +104,8 @@ void AAmiyaDemoGameMode::AddKill()
 		// 5.0s后补充敌人
 		StartEnemyRefill();
 	}
+
+	TryStartBossFight();
 }
 
 void AAmiyaDemoGameMode::StartEnemyRefill()
@@ -192,4 +196,61 @@ bool AAmiyaDemoGameMode::SpawnEnemy()  // 整张地图范围刷新但不在玩家周围
 		}
 	}
 	return false;
+}
+
+void AAmiyaDemoGameMode::TryStartBossFight()   // 能不能生成
+{
+	if (bBossSpawned)
+	{
+		return;
+	}
+
+	if (CoinCount < CoinGoal || KillCount < KillGoal)
+	{
+		return;
+	}
+
+	SpawnBoss();
+}
+
+bool AAmiyaDemoGameMode::SpawnBoss()  // 生成Boss
+{
+	if (!BossClass)
+	{
+		return false;
+	}
+
+	TArray<AActor*> SpawnPoints;
+
+	UGameplayStatics::GetAllActorsWithTag(
+		GetWorld(),
+		BossSpawnTag,
+		SpawnPoints
+	);
+
+	if (SpawnPoints.IsEmpty())
+	{
+		return false;
+	}
+
+	AActor* SpawnPoint = SpawnPoints[0];
+
+	FActorSpawnParameters Params;
+	Params.SpawnCollisionHandlingOverride =
+		ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
+
+	ABossCharacter* Boss = GetWorld()->SpawnActor<ABossCharacter>(
+		BossClass,
+		SpawnPoint->GetActorLocation(),
+		SpawnPoint->GetActorRotation(),
+		Params
+	);
+
+	if (!Boss)
+	{
+		return false;
+	}
+
+	bBossSpawned = true;
+	return true;
 }

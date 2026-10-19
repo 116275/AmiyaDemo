@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "GameFramework/GameModeBase.h"
 #include "EnemyCharacter.h"
+#include "BossCharacter.h"
 #include "AmiyaDemoGameMode.generated.h"
 
 class AACoinActor;
@@ -21,10 +22,21 @@ private:
 	int32 CoinCount = 0;  // 现在捡了几枚了
 	int32 ActiveCoin = 0;   // 场上存在几枚
 	int32 MaxCoin = 5;   // 场上最多存在几枚
-	int32 CoinGoal = 10;  // 目标是捡几枚
+	int32 CoinGoal = 7;  // 目标是捡几枚
 
 	int32 KillCount = 0;
-	int32 KillGoal = 10;
+	int32 KillGoal = 7;
+
+	bool bBossSpawned = false;
+
+	void TryStartBossFight();
+	bool SpawnBoss();
+
+	UPROPERTY(EditAnywhere, Category = "Boss|Spawn")
+	TSubclassOf<ABossCharacter> BossClass;
+
+	UPROPERTY(EditAnywhere, Category = "Boss|Spawn")
+	FName BossSpawnTag = TEXT("BossSpawn");
 
 public:
 
