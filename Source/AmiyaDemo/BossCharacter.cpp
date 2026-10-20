@@ -109,7 +109,7 @@ void ABossCharacter::AttackTarget(AActor* Target)
 
 	ToTarget.Z = 0.f;
 
-	if (!ToTarget.IsNearlyZero())
+	if (!ToTarget.IsNearlyZero())  // ∑¿÷π≥˝“‘0¥ÌŒÛ
 	{
 		const FRotator TargetRotation = ToTarget.Rotation();
 
@@ -151,7 +151,7 @@ void ABossCharacter::OnPunchMontageEnded(UAnimMontage* Montage, bool bInterrupte
 
 float ABossCharacter::GetAttackDistance() const
 {
-	return 200.f;
+	return 212.f;
 }
 
 float ABossCharacter::GetResumeChaseDistance() const

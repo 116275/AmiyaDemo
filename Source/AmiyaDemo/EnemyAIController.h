@@ -14,7 +14,7 @@ enum class EEnemyCombatState
 
 const float SearchRadii[] =
 {
-	150.f, 300.f, 450.f, 600.f, 800.f
+	50.f, 150.f, 250.f, 300.f, 350.f
 };
 
 UCLASS()
