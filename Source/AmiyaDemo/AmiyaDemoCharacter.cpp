@@ -20,6 +20,7 @@
 #include "EnemyCharacter.h"
 #include "ThunderstormDamageType.h"
 #include "Engine/OverlapResult.h"
+#include "AmiyaDemoGameMode.h"
 
 AAmiyaDemoCharacter::AAmiyaDemoCharacter()
 {
@@ -62,6 +63,8 @@ AAmiyaDemoCharacter::AAmiyaDemoCharacter()
 void AAmiyaDemoCharacter::BeginPlay()
 {
 	Super::BeginPlay();
+
+	CurrentHealth = MaxHealth;
 
 	DefaultMaxAcceleration = GetCharacterMovement()->MaxAcceleration;
 
@@ -897,6 +900,11 @@ void AAmiyaDemoCharacter::HandleDeath()
 	}
 
 	bIsDead = true;
+
+	if (AAmiyaDemoGameMode* GameMode = Cast<AAmiyaDemoGameMode>(UGameplayStatics::GetGameMode(this)))
+	{
+		GameMode->FinishGame(EGameResult::Defeat);
+	}
 
 	CancelCurrentAction();
 

@@ -6,6 +6,7 @@
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Components/CapsuleComponent.h"
 #include "NavigationSystem.h"
+#include "AmiyaDemoGameMode.h"
 
 ABossCharacter::ABossCharacter()
 {
@@ -54,6 +55,11 @@ void ABossCharacter::HandleDeath(
 	}
 
 	Super::HandleDeath(KillerController, DamageCauser);
+
+	if (AAmiyaDemoGameMode* GameMode = Cast<AAmiyaDemoGameMode>(UGameplayStatics::GetGameMode(this)))
+	{
+		GameMode->FinishGame(EGameResult::Victory);
+	}
 }
 
 void ABossCharacter::EnterPhase2()

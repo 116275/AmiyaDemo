@@ -256,3 +256,17 @@ bool AAmiyaDemoGameMode::SpawnBoss()  // Éú³ÉBoss
 	OnBossSpawned.Broadcast(Boss);
 	return true;
 }
+
+void AAmiyaDemoGameMode::FinishGame(EGameResult Result)
+{
+	if (GameResult != EGameResult::None)
+	{
+		return;
+	}
+
+	GameResult = Result;
+
+	GetWorld()->GetTimerManager().ClearTimer(EnemyRefillTimer);
+
+	OnResultChanged.Broadcast(Result);
+}

@@ -118,7 +118,7 @@ private:
 
 	int32 GetSummonCount() const
 	{
-		return CurrentPhase == EBossPhase::Phase1 ? 3 : 5;
+		return CurrentPhase == EBossPhase::Phase1 ? 2 : 4;
 	}
 
 	UPROPERTY(EditAnywhere, Category = "Boss|Summon")
@@ -132,12 +132,12 @@ private:
 	float AbsorbAttackBonus = 25.f;
 
 	UPROPERTY(EditAnywhere, Category = "Boss|Absorb")
-	float AbsorbHealPercent = 0.2f;
+	float AbsorbHealPercent = 0.18f;
 
 	bool bIsTimeDeleting = false;
 
 	UPROPERTY(EditAnywhere, Category = "Boss|TimeDeletion")
-	float TimeDeletionDuration = 1.5f;   // 放慢前
+	float TimeDeletionDuration = 0.75f;   // 放慢前
 
 	UPROPERTY(EditAnywhere, Category = "Boss|TimeDeletion")
 	float GlobalTimeScale = 0.25f;

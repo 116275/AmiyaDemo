@@ -173,7 +173,7 @@ bool AEnemyAIController::TryMoveNearPlayer(APawn* PlayerPawn)
 				continue;
 			}
 
-			const float Distance = FVector::Dist(NavLocation.Location, PlayerLocation);
+			const float Distance = FVector::Dist2D(NavLocation.Location, PlayerLocation);
 
 			if (Distance < BestDistance)  // 更新候选点
 			{

@@ -8,6 +8,20 @@
 #include "BossCharacter.h"
 #include "AmiyaDemoGameMode.generated.h"
 
+UENUM(BlueprintType)
+enum class EGameResult : uint8
+{
+	None,
+	Victory,
+	Defeat
+};
+
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(
+	FOnResultChanged,
+	EGameResult,
+	Result
+);
+
 class AACoinActor;
 class ABossCharacter;
 
@@ -29,10 +43,10 @@ private:
 	int32 CoinCount = 0;  // 现在捡了几枚了
 	int32 ActiveCoin = 0;   // 场上存在几枚
 	int32 MaxCoin = 5;   // 场上最多存在几枚
-	int32 CoinGoal = 7;  // 目标是捡几枚
+	int32 CoinGoal = 5;  // 目标是捡几枚
 
 	int32 KillCount = 0;
-	int32 KillGoal = 7;
+	int32 KillGoal = 5;
 
 	bool bBossSpawned = false;
 
@@ -44,6 +58,8 @@ private:
 
 	UPROPERTY(EditAnywhere, Category = "Boss|Spawn")
 	FName BossSpawnTag = TEXT("BossSpawn");
+
+	EGameResult GameResult = EGameResult::None;
 
 public:
 
@@ -136,5 +152,10 @@ public:
 	{
 		return CurrentBoss;
 	}
+
+	UPROPERTY(BlueprintAssignable, Category = "GameResult")
+	FOnResultChanged OnResultChanged;
+
+	void FinishGame(EGameResult Result);
 
 };

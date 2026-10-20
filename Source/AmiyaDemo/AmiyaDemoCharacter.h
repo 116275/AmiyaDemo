@@ -162,8 +162,10 @@ public:
 
 private:  // 自定义参数
 
-	float CurrentHealth = 10000.f;
-	float MaxHealth = 10000.f;
+	float CurrentHealth = 250.f;
+
+	UPROPERTY(EditAnywhere, Category = "Health")
+	float MaxHealth = 250.f;
 
 	float StartOffset = 50.f;
 	float AttackRange = 100.f;
@@ -171,7 +173,7 @@ private:  // 自定义参数
 	float Damage = 50.f;
 
 	float RegenTime = 2.f;   // 多少秒后开始回血
-	float RegenAmountPercent = 2.f;   // 每秒回血百分比
+	float RegenAmountPercent = 5.f;   // 每秒回血百分比
 	float TimeSinceLastDamage = 0.f;  // 离上一次受伤隔了多久
 
 	UPROPERTY(EditAnywhere, Category = "Energy")
@@ -181,7 +183,7 @@ private:  // 自定义参数
 	int32 EnergyRegen = 1;
 
 	UPROPERTY(EditAnywhere, Category = "Energy")
-	float EnergyRegenInterval = 0.5f;
+	float EnergyRegenInterval = 1.5f;
 
 	FTimerHandle EnergyRegenTimer;
 
@@ -428,7 +430,7 @@ public:
 	}
 
 	UPROPERTY(EditAnywhere, Category = "Ultimate")
-	int32 MaxShuttleCharges = 70;
+	int32 MaxShuttleCharges = 5;
 
 	int32 RemainingShuttleCharges = 0;
 

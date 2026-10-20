@@ -105,10 +105,10 @@ public:
 
 protected:
 
-	float CurrentHealth = 100.0f;
+	float CurrentHealth = 150.0f;
 
 	UPROPERTY(EditAnywhere, Category = "Health")
-	float MaxHealth = 200.0f;
+	float MaxHealth = 150.0f;
 
 	virtual void HandleDeath(AController* KillerController, AActor* DamageCauser);
 
