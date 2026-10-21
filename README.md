@@ -20,6 +20,8 @@
 
 [▶ Watch Full Gameplay Demo](https://github.com/116275/AmiyaDemo/releases/tag/v1.0-demo)
 
+[🎮 Download Playable Windows Build](https://github.com/116275/AmiyaDemo/releases/tag/v1.0-demo)
+
 ---
 
 ## 操作说明
