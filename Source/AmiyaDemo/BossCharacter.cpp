@@ -243,7 +243,7 @@ void ABossCharacter::SummonMinions()
 	const int32 Count = GetSummonCount();
 	int32 CurrentCount = 0;
 
-	for (int32 i = 1; i <= Count * 2 && CurrentCount < Count; ++i)
+	for (int32 i = 1; i <= Count * 4 && CurrentCount < Count; ++i)
 	{
 		FNavLocation SpawnLocation;
 
@@ -327,7 +327,7 @@ void ABossCharacter::AbsorbRemainingMinions()
 		++ActiveCount;
 	}
 
-	if (ActiveCount > 0)
+	if (ActiveCount > 0 && !IsDead())
 	{
 		PunchDamage += AbsorbAttackBonus * ActiveCount;
 
