@@ -179,11 +179,16 @@ private:  // 自定义参数
 	UPROPERTY(EditAnywhere, Category = "Energy")
 	int32 MaxEnergy = 8;
 
-	int32 CurrentEnergy = 0;
+	int32 CurrentEnergy = 3;
 	int32 EnergyRegen = 1;
 
 	UPROPERTY(EditAnywhere, Category = "Energy")
 	float EnergyRegenInterval = 1.5f;
+
+	UPROPERTY(EditAnywhere, Category = "Ultimate")
+	float UltimateEnergyRegenInterval = 0.6f;
+
+	void RefreshEnergyRegenTimer();
 
 	FTimerHandle EnergyRegenTimer;
 

@@ -84,7 +84,7 @@ void AAmiyaDemoCharacter::BeginPlay()
 		DefaultFOV = FollowCamera->FieldOfView;
 	}
 
-	GetWorld()->GetTimerManager().SetTimer(EnergyRegenTimer, this, &AAmiyaDemoCharacter::RegenEnergy, EnergyRegenInterval, true);
+	RefreshEnergyRegenTimer();
 }
 
 void AAmiyaDemoCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
@@ -945,6 +945,7 @@ void AAmiyaDemoCharacter::StartUltimate()
 	}
 
 	bIsUltimateActive = true;
+	RefreshEnergyRegenTimer();
 	OnUltimateStateChanged.Broadcast(true);
 
 	RemainingShuttleCharges = MaxShuttleCharges;
@@ -971,6 +972,7 @@ void AAmiyaDemoCharacter::EndUltimate()
 	}
 
 	bIsUltimateActive = false;
+	RefreshEnergyRegenTimer();
 	OnUltimateStateChanged.Broadcast(false);
 
 	RemainingShuttleCharges = 0;
@@ -1136,10 +1138,22 @@ void AAmiyaDemoCharacter::EndShuttle()
 
 int32 AAmiyaDemoCharacter::GetChainLightningEnergyCost() const
 {
-	if (bIsUltimateActive)
-	{
-		return FMath::Max(0, ChainLightningEnergyCost - 2);
-	}
-
 	return ChainLightningEnergyCost;
+}
+
+void AAmiyaDemoCharacter::RefreshEnergyRegenTimer()
+{
+	GetWorld()->GetTimerManager().ClearTimer(EnergyRegenTimer);
+
+	const float RegenInterval = bIsUltimateActive
+		? UltimateEnergyRegenInterval
+		: EnergyRegenInterval;
+
+	GetWorld()->GetTimerManager().SetTimer(
+		EnergyRegenTimer,
+		this,
+		&AAmiyaDemoCharacter::RegenEnergy,
+		RegenInterval,
+		true
+	);
 }
