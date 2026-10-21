@@ -221,7 +221,7 @@ private:  // 自定义参数
 	void EndPerfectParryFeedback();
 
 	UPROPERTY(EditAnywhere, Category = "Parry")
-	float ParryCooldown = 4.f;
+	float ParryCooldown = 2.5f;
 
 	bool bIsParryOnCooldown = false;
 
@@ -351,7 +351,7 @@ private:
 	bool bIsUltimateActive = false;   // 是否在放大招状态
 
 	UPROPERTY(EditAnywhere, Category = "Ultimate")
-	int32 UltimateEnergyCost = 8;
+	int32 UltimateEnergyCost = 6;
 
 	UPROPERTY(EditAnywhere, Category = "Ultimate")
 	float UltimateDuration = 12.f;
@@ -430,7 +430,7 @@ public:
 	}
 
 	UPROPERTY(EditAnywhere, Category = "Ultimate")
-	int32 MaxShuttleCharges = 5;
+	int32 MaxShuttleCharges = 3;
 
 	int32 RemainingShuttleCharges = 0;
 
