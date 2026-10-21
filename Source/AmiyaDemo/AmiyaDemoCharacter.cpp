@@ -459,7 +459,7 @@ void AAmiyaDemoCharacter::TryUpgradeSkillState()
 	switch (SkillPowerState)
 	{
 	case ESkillPowerState::Base :
-		if (ConsumeEnergy(3))
+		if (ConsumeEnergy(2))
 		{
 			SetSkillPowerState(ESkillPowerState::Enhanced);
 		}

@@ -314,7 +314,7 @@ private:
 	void SetChainLightningAimFade(float Fade);
 
 	UPROPERTY(EditAnywhere, Category = "Chain Lightning")
-	int32 ChainLightningEnergyCost = 3;
+	int32 ChainLightningEnergyCost = 2;
 
 	void CastChainLightning(AEnemyCharacter* Target, ESkillPowerState CastState);
 
