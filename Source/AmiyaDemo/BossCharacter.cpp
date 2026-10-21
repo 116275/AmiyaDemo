@@ -173,6 +173,11 @@ float ABossCharacter::GetMoveAcceptanceRadius() const
 
 void ABossCharacter::PerformPunchHit()
 {
+	if (IsDead() || bIsTimeDeleting)
+	{
+		return;
+	}
+
 	const FVector Forward = GetActorForwardVector();
 
 	const FVector Start = GetActorLocation() + Forward * 100.f;

@@ -164,7 +164,7 @@ bool AEnemyAIController::TryMoveNearPlayer(APawn* PlayerPawn)
 			const bool bProjected = NavSystem->ProjectPointToNavigation(
 				Candidate,
 				NavLocation,
-				FVector(150.f, 150.f, 400.f)
+				FVector(150.f, 150.f, 800.f)
 			);
 
 			if (!bProjected)
