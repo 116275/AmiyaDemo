@@ -79,7 +79,7 @@ private:
 	UPROPERTY(EditAnywhere, Category = "Boss|Combat")
 	float PunchRadius = 100.f;
 
-	bool bIsAttacking = false;   // ∑¿÷π∂Øª≠ø®‘⁄«∞∞Î∂Œ
+	bool bIsAttacking = false;   // ∑¿÷π∂Øª≠ø®‘⁄«∞∞Î∂Œ(÷ÿ∏¥≤•∑≈)
 
 	UFUNCTION(BlueprintCallable, Category = "Boss|Combat")
 	void PerformPunchHit();
@@ -89,11 +89,6 @@ private:
 		UAnimMontage* Montage,
 		bool bInterrupted
 	);
-
-	virtual float GetAttackDistance() const override;
-	virtual float GetResumeChaseDistance() const override;
-	virtual float GetAttackInterval() const override;
-	float GetMoveAcceptanceRadius() const override;
 
 	UPROPERTY(EditAnywhere, Category = "Boss|Combat")
 	float Phase2MoveSpeed = 1000.f;
@@ -167,4 +162,13 @@ private:
 
 	ECollisionResponse SavedCapsuleCameraResponse;
 	ECollisionResponse SavedMeshCameraResponse;
+
+protected:
+
+	virtual float GetAttackDistance() const override;
+	virtual float GetResumeChaseDistance() const override;
+	virtual float GetAttackInterval() const override;
+	float GetMoveAcceptanceRadius() const override;
+	virtual void CancelCurrentAttack() override;
+
 };

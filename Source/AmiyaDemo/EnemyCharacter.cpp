@@ -193,6 +193,8 @@ void AEnemyCharacter::ApplyParalysis()
 
 	bIsParalyzed = true;
 
+	CancelCurrentAttack();
+
 	GetCharacterMovement()->StopMovementImmediately();
 	GetCharacterMovement()->DisableMovement();
 
@@ -236,4 +238,8 @@ void AEnemyCharacter::BeConsumedByBoss()
 	CurrentHealth = 0;
 
 	HandleDeath(nullptr, nullptr);
+}
+
+void AEnemyCharacter::CancelCurrentAttack()
+{
 }

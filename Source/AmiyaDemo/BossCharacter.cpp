@@ -173,7 +173,7 @@ float ABossCharacter::GetMoveAcceptanceRadius() const
 
 void ABossCharacter::PerformPunchHit()
 {
-	if (IsDead() || bIsTimeDeleting)
+	if (IsDead() || bIsTimeDeleting || IsParalyzed())
 	{
 		return;
 	}
@@ -526,4 +526,26 @@ float ABossCharacter::TakeDamage(
 		EventInstigator,
 		DamageCauser
 	);
+}
+
+void ABossCharacter::CancelCurrentAttack()
+{
+	if (!PunchMontage)
+	{
+		bIsAttacking = false;
+		return;
+	}
+
+	if (UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance())
+	{
+		if (AnimInstance->Montage_IsPlaying(PunchMontage))
+		{
+			AnimInstance->Montage_Stop(
+				0.1f,
+				PunchMontage
+			);
+		}
+	}
+
+	bIsAttacking = false;
 }

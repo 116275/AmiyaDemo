@@ -119,6 +119,8 @@ protected:
 
 	void ClearParalysis();
 
+	virtual void CancelCurrentAttack();
+
 public:
 
 	virtual float GetAttackDistance() const
