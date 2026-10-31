@@ -10,6 +10,7 @@
 #include "EnemySpawnVolume.h"
 #include "TimerManager.h"
 #include "Engine/TargetPoint.h"
+#include "AmiyaDemoGameInstance.h"
 
 AAmiyaDemoGameMode::AAmiyaDemoGameMode()
 {
@@ -269,4 +270,17 @@ void AAmiyaDemoGameMode::FinishGame(EGameResult Result)
 	GetWorld()->GetTimerManager().ClearTimer(EnemyRefillTimer);
 
 	OnResultChanged.Broadcast(Result);
+}
+
+UClass* AAmiyaDemoGameMode::GetDefaultPawnClassForController_Implementation(AController* InController)
+{
+	if (UAmiyaDemoGameInstance* GameInstance = Cast<UAmiyaDemoGameInstance>(GetGameInstance()))
+	{
+		if (GameInstance->SelectedCharacterClass)
+		{
+			return GameInstance->SelectedCharacterClass;
+		}
+	}
+
+	return Super::GetDefaultPawnClassForController_Implementation(InController);
 }

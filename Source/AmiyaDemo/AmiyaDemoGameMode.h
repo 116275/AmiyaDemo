@@ -158,4 +158,8 @@ public:
 
 	void FinishGame(EGameResult Result);
 
+protected:
+
+	virtual UClass* GetDefaultPawnClassForController_Implementation(AController* InController) override;
+
 };

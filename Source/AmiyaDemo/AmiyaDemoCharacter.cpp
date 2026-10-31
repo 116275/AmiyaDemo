@@ -250,7 +250,7 @@ void AAmiyaDemoCharacter::PerformPunchHit()
 
 	if (BHit)
 	{
-		if (HitResult.GetActor())
+		if (HitResult.GetActor() && !bIsDead)
 		{
 			UGameplayStatics::ApplyDamage(HitResult.GetActor(), Damage, GetController(), this, UDamageType::StaticClass());
 		}
