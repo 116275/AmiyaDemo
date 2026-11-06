@@ -2,13 +2,3 @@
 
 
 #include "AmiyaMultiplayerGameMode.h"
-
-bool AAmiyaMultiplayerGameMode::AllowPausing(APlayerController* PC)
-{
-    if (!PC)
-    {
-        return false;
-    }
-
-    return PC->IsLocalController();
-}

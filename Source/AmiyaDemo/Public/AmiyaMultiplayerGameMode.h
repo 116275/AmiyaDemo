@@ -16,6 +16,4 @@ class AMIYADEMO_API AAmiyaMultiplayerGameMode : public AAmiyaDemoGameMode
 	
 public:
 
-	virtual bool AllowPausing(APlayerController* PC) override;
-
 };
