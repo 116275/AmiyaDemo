@@ -277,7 +277,6 @@ bool AAmiyaDemoGameMode::SpawnBoss()  // Éú³ÉBoss
 	}
 
 	bBossSpawned = true;
-	CurrentBoss = Boss;
 
 	AAmiyaDemoGameState* GS = GetAmiyaGameState();
 

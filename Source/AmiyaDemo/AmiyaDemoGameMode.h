@@ -22,13 +22,8 @@ class AAmiyaDemoGameMode : public AGameModeBase
 
 private:
 
-	int32 CoinCount = 0;  // 现在捡了几枚了
 	int32 ActiveCoin = 0;   // 场上存在几枚
 	int32 MaxCoin = 5;   // 场上最多存在几枚
-	int32 CoinGoal = 5;  // 目标是捡几枚
-
-	int32 KillCount = 0;
-	int32 KillGoal = 5;
 
 	bool bBossSpawned = false;
 
@@ -108,15 +103,6 @@ public:
 	void StartEnemyRefill();
 
 	void TryRefillEnemy();
-
-	UPROPERTY()
-	TObjectPtr<ABossCharacter> CurrentBoss = nullptr;
-
-	UFUNCTION(BlueprintPure, Category = "Boss|Spawn")
-	ABossCharacter* GetCurrentBoss() const
-	{
-		return CurrentBoss;
-	}
 
 protected:
 
