@@ -13,6 +13,13 @@ void AAmiyaDemoPlayerController::BeginPlay()
 {
 	Super::BeginPlay();
 
+	// 所有实例都需要的初始化放在这之上
+
+	if (!IsLocalController())
+	{
+		return;
+	}
+
 	// only spawn touch controls on local player controllers
 	if (ShouldUseTouchControls() && IsLocalPlayerController())
 	{

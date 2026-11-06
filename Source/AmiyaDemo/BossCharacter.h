@@ -45,8 +45,6 @@ protected:
 
 	virtual float GetParalysisDurationScale() const override;
 
-	virtual void AttackTarget(AActor* Target) override;
-
 	virtual float TakeDamage(
 		float DamageAmount,
 		const FDamageEvent& DamageEvent,
@@ -129,7 +127,11 @@ private:
 	UPROPERTY(EditAnywhere, Category = "Boss|Absorb")
 	float AbsorbHealPercent = 0.18f;
 
+	UPROPERTY(ReplicatedUsing = OnRep_TimeDeletion)
 	bool bIsTimeDeleting = false;
+
+	UFUNCTION()
+	void OnRep_TimeDeletion();
 
 	UPROPERTY(EditAnywhere, Category = "Boss|TimeDeletion")
 	float TimeDeletionDuration = 0.75f;   // ·ÅÂýÇ°
@@ -170,5 +172,19 @@ protected:
 	virtual float GetAttackInterval() const override;
 	float GetMoveAcceptanceRadius() const override;
 	virtual void CancelCurrentAttack() override;
+
+public:
+
+	void TryAttack(AActor* Target);
+
+	virtual void AttackTarget(AActor* Target) override;
+
+	UFUNCTION(Server, Reliable)
+	void ServerAttack(AActor* Target);
+
+	UFUNCTION(NetMulticast, Unreliable)
+	void MulticastAttack();
+
+	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 
 };

@@ -55,4 +55,10 @@ public:
 
 	bool TryMoveNearPlayer(APawn* PlayerPawn);
 
+public:
+
+	TWeakObjectPtr<APawn> CurrentTarget = nullptr;
+
+	APawn* FindNearestPlayer() const;
+
 };

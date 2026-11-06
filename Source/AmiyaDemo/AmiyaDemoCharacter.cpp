@@ -21,6 +21,9 @@
 #include "ThunderstormDamageType.h"
 #include "Engine/OverlapResult.h"
 #include "AmiyaDemoGameMode.h"
+#include "Net/UnrealNetwork.h"
+#include "GameFramework/GameStateBase.h"
+#include "AmiyaDemoGameState.h"
 
 AAmiyaDemoCharacter::AAmiyaDemoCharacter()
 {
@@ -140,9 +143,11 @@ void AAmiyaDemoCharacter::Tick(float Delta)
 
 	if (CurrentHealth < MaxHealth && TimeSinceLastDamage >= RegenTime)
 	{
-		CurrentHealth = FMath::Clamp(CurrentHealth + RegenAmountPercent / 100 * MaxHealth * Delta, 0.f, MaxHealth);
+		if (HasAuthority())
+		{
+			CurrentHealth = FMath::Clamp(CurrentHealth + RegenAmountPercent / 100 * MaxHealth * Delta, 0.f, MaxHealth);
+		}
 	}
-
 	if (bIsChainLightningAiming)
 	{
 		UpdateChainLightningTarget();
@@ -174,7 +179,7 @@ void AAmiyaDemoCharacter::DoMove(float Right, float Forward)
 
 		if (bIsParrying && (!FMath::IsNearlyZero(Right) || !FMath::IsNearlyZero(Forward)))
 		{
-			EndParryState();
+			RequestCancelParry();
 		}
 
 		// find out which way is forward
@@ -217,24 +222,41 @@ void AAmiyaDemoCharacter::DoJumpEnd()
 
 void AAmiyaDemoCharacter::Attack()
 {
+    if (HasAuthority())
+    {
+		HandleAttackOnServer();
+    }
+    else
+    {
+        ServerAttack();
+    }
+}
+
+void AAmiyaDemoCharacter::HandleAttackOnServer()  // ∑˛ŒÒ∆˜∂À¥¶¿Ìπ•ª˜¬ﬂº≠
+{
 	if (bIsAttackOnCooldown)
 	{
 		return;
 	}
 
+	CancelCurrentAction();
+	MulticastAttack();
 	StartAttackCooldown();
 
-	CancelCurrentAction();
+}
 
-
-	if (AttackMontage)
-	{
-		PlayAnimMontage(AttackMontage);
-	}
+void AAmiyaDemoCharacter::ServerAttack_Implementation()
+{
+	HandleAttackOnServer();
 }
 
 void AAmiyaDemoCharacter::PerformPunchHit()
 {
+	if (!HasAuthority())  // ∑˛ŒÒ∆˜∂À¥¶¿Ìπ•ª˜¬ﬂº≠
+	{
+		return;
+	}
+
 	FVector ActorLocal = AAmiyaDemoCharacter::GetActorLocation();
 	FVector Forward = AAmiyaDemoCharacter::GetActorForwardVector();
 	FVector Start = ActorLocal + Forward * StartOffset;
@@ -258,6 +280,14 @@ void AAmiyaDemoCharacter::PerformPunchHit()
 
 }
 
+void AAmiyaDemoCharacter::MulticastAttack_Implementation()
+{
+	if (AttackMontage)
+	{
+		PlayAnimMontage(AttackMontage);
+	}
+}
+
 float AAmiyaDemoCharacter::TakeDamage(float DamageAmount, FDamageEvent const& DamageEvent, AController* EventInstigator, AActor* DamageCauser)
 {
 	if (bIsDead || bIsShuttling)
@@ -272,21 +302,21 @@ float AAmiyaDemoCharacter::TakeDamage(float DamageAmount, FDamageEvent const& Da
 		return 0.f;
 	}
 
+	if (bIsPerfectParrying)
+	{
+		AddEnergy(2);
+
+		EndParry();   // ÕÍ√¿∑¿∑¥÷ª«Â≥˝Parry◊¥Ã¨£¨≤ªÀ„¿‰»¥
+		//ParryCooldownCleared();
+
+		ClientPlayPerfectParryFeedback();
+
+		return 0.f;
+	}
+
 	if (bIsParrying)
 	{
-		if (bIsPerfectParrying)
-		{
-			AddEnergy(2);
-
-			EndParry();
-			ParryCooldownCleared();
-
-			StartPerfectParryFeedback();
-
-			return 0.f;
-		}
-		
-		ActualDamage *= 0.5;
+		ActualDamage *= 0.5f;
 	}
 
 	CurrentHealth = FMath::Clamp(CurrentHealth - ActualDamage, 0.f, MaxHealth);
@@ -303,13 +333,41 @@ float AAmiyaDemoCharacter::TakeDamage(float DamageAmount, FDamageEvent const& Da
 
 void AAmiyaDemoCharacter::StartSprint()
 {
-	bIsSprinting = true;
+	if (HasAuthority())
+	{
+		bIsSprinting = true;
+	}
+	else
+	{
+		ServerSetSprinting(true);
+	}
+
 	RefreshMoveSpeed();
+}
+
+void AAmiyaDemoCharacter::ServerSetSprinting_Implementation(bool bNewSprinting)
+{
+	bIsSprinting = bNewSprinting;
+
+	RefreshMoveSpeed();
+}
+
+void AAmiyaDemoCharacter::OnRep_IsSprinting()
+{
+    RefreshMoveSpeed();
 }
 
 void AAmiyaDemoCharacter::StopSprint()
 {
-	bIsSprinting = false;
+	if (HasAuthority())
+	{
+		bIsSprinting = false;
+	}
+	else
+	{
+		ServerSetSprinting(false);
+	}
+
 	RefreshMoveSpeed();
 }
 
@@ -327,6 +385,11 @@ void AAmiyaDemoCharacter::RefreshMoveSpeed()
 
 void AAmiyaDemoCharacter::RegenEnergy()
 {
+	if (!HasAuthority())
+	{
+		return;
+	}
+
 	AddEnergy(EnergyRegen);
 }
 
@@ -353,55 +416,67 @@ bool AAmiyaDemoCharacter::ConsumeEnergy(int32 cost)
 	}
 }
 
-void AAmiyaDemoCharacter::StartParryState()
+void AAmiyaDemoCharacter::EndParry()  // ∏∫‘∑¿∑¥ ’Œ≤(÷ª«Â Parry ±æÃÂ)
 {
-	if (bIsParrying || bIsParryOnCooldown)
+	if (!HasAuthority())
 	{
 		return;
 	}
 
-	CancelCurrentAction();
-
-	if (ParryMontage)
-	{
-		PlayAnimMontage(ParryMontage);
-	}
-
-	bIsParrying = true;
-	bIsPerfectParrying = true;
-
-	GetWorld()->GetTimerManager().SetTimer(PerfectParryTimer, this, &AAmiyaDemoCharacter::EndPerfectParry, PerfectParryDuration, false);
-
-	GetWorld()->GetTimerManager().SetTimer(ParryTimer, this, &AAmiyaDemoCharacter::EndParryState, ParryDuration, false);
-
-}
-
-void AAmiyaDemoCharacter::EndParry()  // ∏∫‘∑¿∑¥ ’Œ≤
-{
 	bIsParrying = false;
 	bIsPerfectParrying = false;
 
 	GetWorld()->GetTimerManager().ClearTimer(PerfectParryTimer);
 	GetWorld()->GetTimerManager().ClearTimer(ParryTimer);
 
-	if (ParryMontage)
+	RefreshParryPresentation();
+}
+
+void AAmiyaDemoCharacter::RefreshParryPresentation()
+{
+	if (bIsParrying)
 	{
-		StopAnimMontage(ParryMontage);
+		if (ParryMontage && !GetMesh()->GetAnimInstance()->Montage_IsPlaying(ParryMontage))
+		{
+			PlayAnimMontage(ParryMontage);
+		}
+	}
+	else
+	{
+		if (ParryMontage)
+		{
+			StopAnimMontage(ParryMontage);
+		}
 	}
 }
 
-void AAmiyaDemoCharacter::EndPerfectParry()  // ∏∫‘∑¿∑¥ ’Œ≤
+void AAmiyaDemoCharacter::OnRep_IsParrying()
 {
-	bIsPerfectParrying = false;
+	if (!bIsParrying)
+	{
+		bParryCancelRequestSent = false;
+	}
 
-	GetWorld()->GetTimerManager().ClearTimer(PerfectParryTimer);
+	RefreshParryPresentation();
+}
+
+void AAmiyaDemoCharacter::EndPerfectParry()  // ÷ªπÿ Perfect ¥∞ø⁄
+{
+    if (!HasAuthority())
+    {
+        return;
+    }
+
+    bIsPerfectParrying = false;
+
+    GetWorldTimerManager().ClearTimer(PerfectParryTimer);
 }
 
 void AAmiyaDemoCharacter::StartPerfectParryFeedback()
 {
 	FollowCamera->SetFieldOfView(PerfectParryFOV);
 
-	UGameplayStatics::SetGlobalTimeDilation(GetWorld(), PerfectParrySlowFactor);
+	//UGameplayStatics::SetGlobalTimeDilation(GetWorld(), PerfectParrySlowFactor);
 
 	GetWorld()->GetTimerManager().SetTimer(PerfectParryFeedbackTimer, this, &AAmiyaDemoCharacter::EndPerfectParryFeedback, HighLightDuration * PerfectParrySlowFactor, false);
 }
@@ -410,11 +485,16 @@ void AAmiyaDemoCharacter::EndPerfectParryFeedback()
 {
 	FollowCamera->SetFieldOfView(DefaultFOV);
 
-	UGameplayStatics::SetGlobalTimeDilation(GetWorld(), 1.f);
+	//UGameplayStatics::SetGlobalTimeDilation(GetWorld(), 1.f);
 }
 
-void AAmiyaDemoCharacter::EndParryState()  // ◊‹µƒ∏∫‘ ’Œ≤(“™Ω¯»Î¿‰»¥)
+void AAmiyaDemoCharacter::EndParryState()  // °∞’˝≥£Ω· ¯ Parry°±ÕÍ’˚¡˜≥Ã
 {
+	if (!HasAuthority())
+	{
+		return;
+	}
+
 	if (!bIsParrying)
 	{
 		return;
@@ -426,83 +506,115 @@ void AAmiyaDemoCharacter::EndParryState()  // ◊‹µƒ∏∫‘ ’Œ≤(“™Ω¯»Î¿‰»¥)
 
 void AAmiyaDemoCharacter::StartParryCooldown()
 {
+	if (!HasAuthority())
+	{
+		return;
+	}
+
 	bIsParryOnCooldown = true;
 
-	GetWorld()->GetTimerManager().SetTimer(ParryCooldownTimer, this, &AAmiyaDemoCharacter::EndParryCooldown, ParryCooldown, false);
+	if (const AGameStateBase* GameState = GetWorld()->GetGameState())
+	{
+		ParryCooldownEndTime =
+			GameState->GetServerWorldTimeSeconds()
+			+ ParryCooldown;
+	}
+
+	GetWorldTimerManager().SetTimer(
+		ParryCooldownTimer,
+		this,
+		&AAmiyaDemoCharacter::EndParryCooldown,
+		ParryCooldown,
+		false
+	);
 }
 
 void AAmiyaDemoCharacter::EndParryCooldown()
 {
+	if (!HasAuthority())
+	{
+		return;
+	}
+
 	bIsParryOnCooldown = false;
+	ParryCooldownEndTime = 0.f;
 }
 
 void AAmiyaDemoCharacter::ParryCooldownCleared()
 {
-	GetWorld()->GetTimerManager().ClearTimer(ParryCooldownTimer);
+	if (!HasAuthority())
+	{
+		return;
+	}
+
+	GetWorldTimerManager().ClearTimer(ParryCooldownTimer);
+
 	bIsParryOnCooldown = false;
+	ParryCooldownEndTime = 0.f;
 }
 
 float AAmiyaDemoCharacter::GetParryCooldownPercent() const
 {
-	if (!GetWorld() || !bIsParryOnCooldown)
+	if (!GetWorld() || ParryCooldown <= 0.f)
 	{
 		return 0.f;
 	}
 
-	const float RemainingTime = GetWorld()->GetTimerManager().GetTimerRemaining(ParryCooldownTimer);
+	const AGameStateBase* GameState = GetWorld()->GetGameState();
 
-	return FMath::Clamp(RemainingTime / ParryCooldown, 0.f, 1.f);
+	if (!GameState || ParryCooldownEndTime <= 0.f)
+	{
+		return 0.f;
+	}
+
+	const float RemainingTime = FMath::Max(
+		0.f,
+		ParryCooldownEndTime - GameState->GetServerWorldTimeSeconds()
+	);
+
+	return FMath::Clamp(
+		RemainingTime / ParryCooldown,
+		0.f,
+		1.f
+	);
 }
 
 void AAmiyaDemoCharacter::TryUpgradeSkillState()
 {
+	if (HasAuthority())
+	{
+		HandleUpgradeSkillStateOnServer();
+	}
+	else
+	{
+		ServerTryUpgradeSkillState();
+	}
+}
+
+void AAmiyaDemoCharacter::ServerTryUpgradeSkillState_Implementation()
+{
+	HandleUpgradeSkillStateOnServer();
+}
+
+void AAmiyaDemoCharacter::HandleUpgradeSkillStateOnServer()
+{
 	switch (SkillPowerState)
 	{
-	case ESkillPowerState::Base :
+	case ESkillPowerState::Base:
 		if (ConsumeEnergy(2))
 		{
 			SetSkillPowerState(ESkillPowerState::Enhanced);
 		}
 		break;
 
-	case ESkillPowerState::Enhanced :
+	case ESkillPowerState::Enhanced:
 		if (ConsumeEnergy(2))
 		{
 			SetSkillPowerState(ESkillPowerState::Overcharged);
 		}
 		break;
 
-	case ESkillPowerState::Overcharged :
-		break;
-	}
-}
-
-void AAmiyaDemoCharacter::SetSkillPowerState(ESkillPowerState NewState)
-{
-	SkillPowerState = NewState;
-
-	switch (SkillPowerState)
-	{
-	case ESkillPowerState::Base :
-		GetMesh()->SetOverlayMaterial(nullptr);
-		break;
-
-	case ESkillPowerState::Enhanced :
-		if (StateGlowMID)
-		{
-			StateGlowMID->SetVectorParameterValue(TEXT("GlowColor"), FLinearColor::Yellow);
-
-			GetMesh()->SetOverlayMaterial(StateGlowMID);
-		}
-		break;
-
-	case ESkillPowerState::Overcharged :
-		if (StateGlowMID)
-		{
-			StateGlowMID->SetVectorParameterValue(TEXT("GlowColor"), FLinearColor::Red);
-
-			GetMesh()->SetOverlayMaterial(StateGlowMID);
-		}
+	case ESkillPowerState::Overcharged:
 		break;
 	}
 }
@@ -528,7 +640,7 @@ void AAmiyaDemoCharacter::CancelCurrentAction()   // Õ®”√»°œ˚µ±«∞∂Ø◊˜£®”√”⁄ººƒ‹£
 
 	if (bIsParrying)
 	{
-		EndParryState();
+		RequestCancelParry();
 	}
 }
 
@@ -577,7 +689,7 @@ void AAmiyaDemoCharacter::StartChainLightningAim()
 	// ZoomCamera();
 }
 
-void AAmiyaDemoCharacter::TryReleaseChainLightning()
+void AAmiyaDemoCharacter::TryReleaseChainLightning()   // ≥¢ ‘ Õ∑≈¡¥ Ω…¡µÁ
 {
 	if (!bIsChainLightningAiming)   // »Áπ˚√ª‘⁄√È◊º
 	{
@@ -590,7 +702,7 @@ void AAmiyaDemoCharacter::TryReleaseChainLightning()
 		return;
 	}
 
-	if (!ConsumeEnergy(GetChainLightningEnergyCost()))  // »Áπ˚ƒ‹¡ø≤ª◊„
+	if (CurrentEnergy < GetChainLightningEnergyCost())  // »Áπ˚ƒ‹¡ø≤ª◊„
 	{
 		CancelChainLightningAim();
 		return;
@@ -615,15 +727,168 @@ void AAmiyaDemoCharacter::TryReleaseChainLightning()
 
 	CurrentChainLightningTarget = nullptr;   // œ»±£¥Ê‘Ÿ«Â√È◊º◊¥Ã¨
 
-	OnChainLightningAimChanged.Broadcast(false);
-
 	const ESkillPowerState CastState = SkillPowerState;  //  Õ∑≈ ±µƒººƒ‹◊¥Ã¨
 
-	CastChainLightning(Target, CastState);
+	OnChainLightningAimChanged.Broadcast(false);
+
+	ServerTryChainLightning(Target);  // ∑˛ŒÒ∆˜∂À¥¶¿Ì¡¥ Ω…¡µÁ Õ∑≈
+}
+
+void AAmiyaDemoCharacter::ServerTryChainLightning_Implementation(AEnemyCharacter* Target)
+{
+	if (!HasAuthority())
+	{
+		return;
+	}
+
+	if (!IsValid(Target))
+	{
+		return;
+	}
+
+	if (!Target->IsTargetable())
+	{
+		return;
+	}
+
+	const float DistanceSq = FVector::DistSquared(GetActorLocation(), Target->GetActorLocation());
+
+	if (DistanceSq > FMath::Square(ChainLightningMaxCastDistance))
+	{
+		return;
+	}
+
+	if (CurrentEnergy < GetChainLightningEnergyCost())
+	{
+		return;
+	}
+
+	ConsumeEnergy(GetChainLightningEnergyCost());
+
+	CastChainLightning(Target);
 
 	SetSkillPowerState(ESkillPowerState::Base);
+}
 
-	// StartCooldown(...)
+void AAmiyaDemoCharacter::CastChainLightning(AEnemyCharacter* Target)
+{
+	if (!HasAuthority())
+	{
+		return;
+	}
+
+	if (!IsValid(Target))
+	{
+		return;
+	}
+
+	int32 MaxTargets = 3;
+	float DamageDecay = 0.75f;
+
+	ESkillPowerState CastState = SkillPowerState;
+
+	switch (CastState)
+	{
+	case ESkillPowerState::Base :
+		MaxTargets = 3;
+		DamageDecay = 0.75f;
+		break;
+	case ESkillPowerState::Enhanced :
+		MaxTargets = 4;
+		DamageDecay = 1.f;
+		break;
+	case ESkillPowerState::Overcharged :
+		MaxTargets = 6;
+		DamageDecay = 1.f;
+		break;
+	}
+
+	TSet<AEnemyCharacter*> HitTargets;
+	AEnemyCharacter* CurrentTarget = Target;  // ¡¥ Ω…¡µÁµ±«∞Ã¯µΩµƒµ–»À
+	float CurrentDamage = ChainLightningDamage;  // µ±«∞¡¥ Ω…¡µÁ…À∫¶
+
+	FVector ChainStart = GetActorLocation() + FVector(0.f, 0.f, 75.f);
+
+	for (int32 HitIndex = 0; HitIndex < MaxTargets; HitIndex++)
+	{
+		if (!IsValid(CurrentTarget))
+		{
+			break;
+		}
+
+		const FVector TargetLocation = CurrentTarget->GetActorLocation() + FVector(0.f, 0.f, 75.f);
+
+		MulticastDrawDebugLine(ChainStart, TargetLocation, FColor::Yellow);
+		//DrawDebugLine(GetWorld(), ChainStart, TargetLocation, FColor::Yellow, false, 0.75f, 0, 5.f);
+
+		HitTargets.Add(CurrentTarget);
+
+		AEnemyCharacter* NextTarget = nullptr;
+
+		if (HitIndex + 1 < MaxTargets)
+		{
+			NextTarget = FindNextChainLightningTarget(CurrentTarget, HitTargets);
+		}
+
+		UGameplayStatics::ApplyDamage(CurrentTarget, CurrentDamage, GetController(), this, UDamageType::StaticClass());
+
+		ChainStart = TargetLocation;
+		CurrentTarget = NextTarget;
+		CurrentDamage *= DamageDecay;
+	}
+
+	if (CastState == ESkillPowerState::Overcharged)  // ◊¥Ã¨2 ±£¨ººƒ‹Ω· ¯ Õ∑≈¿◊±©
+	{
+		for (AEnemyCharacter* HitTarget : HitTargets)
+		{
+			if (!IsValid(HitTarget))
+			{
+				continue;
+			}
+
+			const FVector StormCenter =
+				HitTarget->GetActorLocation();
+
+			MulticastDrawDebugSphere(StormCenter, ChainLightningRadius);
+
+			SpawnThunderstormAt(HitTarget->GetBodyLocation());
+		}
+	}
+
+}
+
+void AAmiyaDemoCharacter::MulticastDrawDebugSphere_Implementation(FVector StormCenter, float NowRadius)
+{
+	DrawDebugSphere(GetWorld(), StormCenter, NowRadius, 24, FColor::Purple, false, 1.5f, 0, 3.f);
+}
+
+void AAmiyaDemoCharacter::SpawnThunderstormAt(const FVector& StormCenter, float NowRadius, float NowDamage)
+{
+
+	TArray<AActor*> Enemies;
+
+	UGameplayStatics::GetAllActorsOfClass(GetWorld(), AEnemyCharacter::StaticClass(), Enemies);
+
+	const float Pow = FMath::Square(NowRadius);
+
+	for (AActor* Actor : Enemies)
+	{
+		AEnemyCharacter* Enemy = Cast<AEnemyCharacter>(Actor);
+
+		if (!IsValid(Enemy) || !Enemy->IsTargetable())
+		{
+			continue;
+		}
+
+		float DistanceSq = FVector::DistSquared(StormCenter, Enemy->GetBodyLocation());
+
+		if (DistanceSq > Pow)
+		{
+			continue;
+		}
+
+		UGameplayStatics::ApplyDamage(Enemy, NowDamage, GetController(), this, UThunderstormDamageType::StaticClass());
+	}
 }
 
 void AAmiyaDemoCharacter::CancelChainLightningAim()
@@ -735,113 +1000,6 @@ void AAmiyaDemoCharacter::SetChainLightningAimFade(float Fade)
 	GetMesh()->SetOverlayMaterial(nullptr);
 }
 
-void AAmiyaDemoCharacter::CastChainLightning(AEnemyCharacter* Target, ESkillPowerState CastState)
-{
-	if (!IsValid(Target))
-	{
-		return;
-	}
-
-	int32 MaxTargets = 3;
-	float DamageDecay = 0.75f;
-
-	switch (CastState)
-	{
-	case ESkillPowerState::Base :
-		MaxTargets = 3;
-		DamageDecay = 0.75f;
-		break;
-	case ESkillPowerState::Enhanced :
-		MaxTargets = 4;
-		DamageDecay = 1.f;
-		break;
-	case ESkillPowerState::Overcharged :
-		MaxTargets = 6;
-		DamageDecay = 1.f;
-		break;
-	}
-
-	TSet<AEnemyCharacter*> HitTargets;
-	AEnemyCharacter* CurrentTarget = Target;  // ¡¥ Ω…¡µÁµ±«∞Ã¯µΩµƒµ–»À
-	float CurrentDamage = ChainLightningDamage;  // µ±«∞¡¥ Ω…¡µÁ…À∫¶
-
-	FVector ChainStart = GetActorLocation() + FVector(0.f, 0.f, 75.f);
-
-	for (int32 HitIndex = 0; HitIndex < MaxTargets; HitIndex++)
-	{
-		if (!IsValid(CurrentTarget))
-		{
-			break;
-		}
-
-		const FVector TargetLocation = CurrentTarget->GetActorLocation() + FVector(0.f, 0.f, 75.f);
-
-		DrawDebugLine(GetWorld(), ChainStart, TargetLocation, FColor::Yellow, false, 0.75f, 0, 5.f);
-
-		HitTargets.Add(CurrentTarget);
-
-		AEnemyCharacter* NextTarget = nullptr;
-
-		if (HitIndex + 1 < MaxTargets)
-		{
-			NextTarget = FindNextChainLightningTarget(CurrentTarget, HitTargets);
-		}
-
-		UGameplayStatics::ApplyDamage(CurrentTarget, CurrentDamage, GetController(), this, UDamageType::StaticClass());
-
-		ChainStart = TargetLocation;
-		CurrentTarget = NextTarget;
-		CurrentDamage *= DamageDecay;
-	}
-
-	if (CastState == ESkillPowerState::Overcharged)  // ◊¥Ã¨2 ±£¨ººƒ‹Ω· ¯ Õ∑≈¿◊±©
-	{
-		for (AEnemyCharacter* HitTarget : HitTargets)
-		{
-			if (!IsValid(HitTarget))
-			{
-				continue;
-			}
-
-			const FVector StormCenter =
-				HitTarget->GetActorLocation();
-
-			SpawnThunderstormAt(HitTarget->GetBodyLocation());
-		}
-	}
-
-}
-
-void AAmiyaDemoCharacter::SpawnThunderstormAt(const FVector& StormCenter, float NowRadius, float NowDamage)
-{
-	DrawDebugSphere(GetWorld(), StormCenter, NowRadius, 24, FColor::Purple, false, 1.5f, 0, 3.f);
-
-	TArray<AActor*> Enemies;
-
-	UGameplayStatics::GetAllActorsOfClass(GetWorld(), AEnemyCharacter::StaticClass(), Enemies);
-
-	const float Pow = FMath::Square(NowRadius);
-
-	for (AActor* Actor : Enemies)
-	{
-		AEnemyCharacter* Enemy = Cast<AEnemyCharacter>(Actor);
-
-		if (!IsValid(Enemy) || !Enemy->IsTargetable())
-		{
-			continue;
-		}
-
-		float DistanceSq = FVector::DistSquared(StormCenter, Enemy->GetBodyLocation());
-
-		if (DistanceSq > Pow)
-		{
-			continue;
-		}
-
-		UGameplayStatics::ApplyDamage(Enemy, NowDamage, GetController(), this, UThunderstormDamageType::StaticClass());
-	}
-}
-
 AEnemyCharacter* AAmiyaDemoCharacter::FindNextChainLightningTarget(AEnemyCharacter* FromTarget, const TSet<AEnemyCharacter*>& HitTargets)
 {
 	if (!IsValid(FromTarget))
@@ -894,16 +1052,31 @@ AEnemyCharacter* AAmiyaDemoCharacter::FindNextChainLightningTarget(AEnemyCharact
 
 void AAmiyaDemoCharacter::HandleDeath()
 {
-	if (bIsDead)
+	if (!HasAuthority() || bIsDead)
 	{
 		return;
 	}
 
 	bIsDead = true;
 
-	if (AAmiyaDemoGameMode* GameMode = Cast<AAmiyaDemoGameMode>(UGameplayStatics::GetGameMode(this)))
+	RefreshDeathPresentation();
+}
+
+void AAmiyaDemoCharacter::OnRep_IsDead()
+{
+	RefreshDeathPresentation();
+}
+
+void AAmiyaDemoCharacter::RefreshDeathPresentation()
+{
+	if (!bIsDead)
 	{
-		GameMode->FinishGame(EGameResult::Defeat);
+		return;
+	}
+
+	if (AAmiyaDemoGameState* GS = Cast<AAmiyaDemoGameState>(UGameplayStatics::GetGameState(this)))
+	{
+		GS->SetGameResult(EGameResult::Defeat);
 	}
 
 	CancelCurrentAction();
@@ -934,6 +1107,30 @@ void AAmiyaDemoCharacter::HandleDeath()
 
 void AAmiyaDemoCharacter::StartUltimate()
 {
+	AGameStateBase* GameState = GetWorld()->GetGameState();
+
+	if (GameState)
+	{
+		UltimateEndTime = GameState->GetServerWorldTimeSeconds() + UltimateDuration;
+	}
+
+	if (HasAuthority())
+	{
+		HandleStartUltimateOnServer();
+	}
+	else
+	{
+		ServerStartUltimate();
+	}
+}
+
+void AAmiyaDemoCharacter::ServerStartUltimate_Implementation()
+{
+	HandleStartUltimateOnServer();
+}
+
+void AAmiyaDemoCharacter::HandleStartUltimateOnServer()
+{
 	if (bIsUltimateActive)
 	{
 		return;
@@ -949,17 +1146,12 @@ void AAmiyaDemoCharacter::StartUltimate()
 	OnUltimateStateChanged.Broadcast(true);
 
 	RemainingShuttleCharges = MaxShuttleCharges;
-	OnShuttleChargesChanged.Broadcast(RemainingShuttleCharges);
+	if (HasAuthority())
+	{
+		OnShuttleChargesChanged.Broadcast(RemainingShuttleCharges);
+	}
 
-	RefreshMoveSpeed();
-
-	GetCharacterMovement()->JumpZVelocity += UltimateJumpBonus;
-
-	GetCharacterMovement()->MaxAcceleration = UltimateMaxAcceleration;
-
-	GetCharacterMovement()->BrakingDecelerationWalking = UltimateBrakingDeceleration;
-
-	GetCharacterMovement()->RotationRate = FRotator(0.f, UltimateRotationRate, 0.f);
+	ApplyUltimateState();
 
 	GetWorld()->GetTimerManager().SetTimer(UltimateTimer, this, &AAmiyaDemoCharacter::EndUltimate, UltimateDuration, false);
 }
@@ -976,65 +1168,46 @@ void AAmiyaDemoCharacter::EndUltimate()
 	OnUltimateStateChanged.Broadcast(false);
 
 	RemainingShuttleCharges = 0;
-	OnShuttleChargesChanged.Broadcast(RemainingShuttleCharges);
-
-	RefreshMoveSpeed();
-
-	GetCharacterMovement()->JumpZVelocity -= UltimateJumpBonus;
-
-	GetCharacterMovement()->MaxAcceleration = DefaultMaxAcceleration;
-
-	GetCharacterMovement()->BrakingDecelerationWalking = DefaultBrakingDeceleration;
-
-	GetCharacterMovement()->RotationRate = DefaultRotationRate;
-
-	GetWorld()->GetTimerManager().ClearTimer(UltimateTimer);
-
-	SpawnThunderstormAt(GetActorLocation(), 1200.f, 125.f);   // ¥Û’–Ω· ¯ Õ∑≈«øªØ∫Ûµƒ¥Û¿◊±©
-}
-
-float AAmiyaDemoCharacter::GetUltimateRemainingTime() const
-{
-	if (!bIsUltimateActive)
+	if (HasAuthority())
 	{
-		return 0.f;
+		OnShuttleChargesChanged.Broadcast(RemainingShuttleCharges);
 	}
 
-	return FMath::Max(0.f, GetWorld()->GetTimerManager().GetTimerRemaining(UltimateTimer));
+	ApplyUltimateState();
+
+	MulticastDrawThunderstormSphere(GetActorLocation(), 1200.f);
+
+	SpawnThunderstormAt(GetActorLocation(), 1200.f, 125.f);   // ¥Û’–Ω· ¯ Õ∑≈«øªØ∫Ûµƒ¥Û¿◊±©
+
+	UltimateEndTime = 0.f;
 }
 
-void AAmiyaDemoCharacter::HandleParryInput()
+void AAmiyaDemoCharacter::ApplyUltimateState()
 {
 	if (bIsUltimateActive)
 	{
-		TryShuttle();
-		return;
+		GetCharacterMovement()->JumpZVelocity += UltimateJumpBonus;
+
+		GetCharacterMovement()->MaxAcceleration = UltimateMaxAcceleration;
+
+		GetCharacterMovement()->BrakingDecelerationWalking = UltimateBrakingDeceleration;
+
+		GetCharacterMovement()->RotationRate = FRotator(0.f, UltimateRotationRate, 0.f);
 	}
-
-	StartParryState();
-}
-
-void AAmiyaDemoCharacter::TryShuttle()  // ∑¿÷πø®«Ωø€¥Œ ˝
-{
-	if (!bIsUltimateActive)
+	else
 	{
-		return;
+		GetCharacterMovement()->JumpZVelocity -= UltimateJumpBonus;
+
+		GetCharacterMovement()->MaxAcceleration = DefaultMaxAcceleration;
+
+		GetCharacterMovement()->BrakingDecelerationWalking = DefaultBrakingDeceleration;
+
+		GetCharacterMovement()->RotationRate = DefaultRotationRate;
+
+		GetWorld()->GetTimerManager().ClearTimer(UltimateTimer);
 	}
 
-	if (RemainingShuttleCharges <= 0)
-	{
-		return;
-	}
-
-	if (!PerformShuttle())  // »Áπ˚À≤“∆ ß∞‹£®ø®«Ω£©£¨≤ªø€¥Œ ˝
-	{
-		return;
-	}
-
-	StartShuttle();   // ÷¥––Œﬁµ–¬ﬂº≠
-
-	--RemainingShuttleCharges;
-	OnShuttleChargesChanged.Broadcast(RemainingShuttleCharges);
+	RefreshMoveSpeed();
 }
 
 bool AAmiyaDemoCharacter::PerformShuttle()   // ’Ê’˝ µœ÷À≤“∆
@@ -1124,6 +1297,35 @@ void AAmiyaDemoCharacter::ApplyShuttlePathDamage(const FVector& Start, const FVe
 	}
 }
 
+void AAmiyaDemoCharacter::TrySetShuttling(bool bNewShuttling)
+{
+	if (HasAuthority())
+	{
+		HandleSetSetShuttling(bNewShuttling);
+	}
+	else
+	{
+		ServerSetShuttling(bNewShuttling);
+	}
+}
+
+void AAmiyaDemoCharacter::ServerSetShuttling_Implementation(bool bNewShuttling)
+{
+	HandleSetSetShuttling(bNewShuttling);
+}
+
+void AAmiyaDemoCharacter::HandleSetSetShuttling(bool bNewShuttling)
+{
+	if (bNewShuttling)
+	{
+		StartShuttle();
+	}
+	else
+	{
+		EndShuttle();
+	}
+}
+
 void AAmiyaDemoCharacter::StartShuttle()
 {
 	bIsShuttling = true;
@@ -1143,6 +1345,11 @@ int32 AAmiyaDemoCharacter::GetChainLightningEnergyCost() const
 
 void AAmiyaDemoCharacter::RefreshEnergyRegenTimer()
 {
+	if (!HasAuthority())
+	{
+		return;
+	}
+
 	GetWorld()->GetTimerManager().ClearTimer(EnergyRegenTimer);
 
 	const float RegenInterval = bIsUltimateActive
@@ -1156,4 +1363,260 @@ void AAmiyaDemoCharacter::RefreshEnergyRegenTimer()
 		RegenInterval,
 		true
 	);
+}
+
+void AAmiyaDemoCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
+{
+	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+
+	DOREPLIFETIME(AAmiyaDemoCharacter, CurrentHealth);
+	DOREPLIFETIME(AAmiyaDemoCharacter, CurrentEnergy);
+
+	DOREPLIFETIME(AAmiyaDemoCharacter, SkillPowerState);
+	DOREPLIFETIME(AAmiyaDemoCharacter, bIsUltimateActive);
+	DOREPLIFETIME(AAmiyaDemoCharacter, RemainingShuttleCharges);
+	DOREPLIFETIME(AAmiyaDemoCharacter, UltimateEndTime);
+	
+	DOREPLIFETIME(AAmiyaDemoCharacter, bIsSprinting);
+
+	DOREPLIFETIME(AAmiyaDemoCharacter, bIsShuttling);
+
+	DOREPLIFETIME(AAmiyaDemoCharacter, bIsParrying);
+
+	DOREPLIFETIME(AAmiyaDemoCharacter, ParryCooldownEndTime);
+
+	DOREPLIFETIME(AAmiyaDemoCharacter, bIsDead);
+}
+
+void AAmiyaDemoCharacter::OnRep_ShuttleCharges()
+{
+	OnShuttleChargesChanged.Broadcast(RemainingShuttleCharges);
+}
+
+void AAmiyaDemoCharacter::OnRep_UltimateActive()
+{
+	ApplyUltimateState();
+
+	OnUltimateStateChanged.Broadcast(bIsUltimateActive);
+}
+
+void AAmiyaDemoCharacter::OnRep_CurrentEnergy()
+{
+	OnEnergyChanged.Broadcast(CurrentEnergy);
+}
+
+void AAmiyaDemoCharacter::RefreshSkillPowerVisual()
+{
+	switch (SkillPowerState)
+	{
+	case ESkillPowerState::Base:
+		GetMesh()->SetOverlayMaterial(nullptr);
+		break;
+
+	case ESkillPowerState::Enhanced:
+		if (StateGlowMID)
+		{
+			StateGlowMID->SetVectorParameterValue(
+				TEXT("GlowColor"),
+				FLinearColor::Yellow
+			);
+
+			GetMesh()->SetOverlayMaterial(StateGlowMID);
+		}
+		break;
+
+	case ESkillPowerState::Overcharged:
+		if (StateGlowMID)
+		{
+			StateGlowMID->SetVectorParameterValue(
+				TEXT("GlowColor"),
+				FLinearColor::Red
+			);
+
+			GetMesh()->SetOverlayMaterial(StateGlowMID);
+		}
+		break;
+	}
+}
+
+void AAmiyaDemoCharacter::SetSkillPowerState(ESkillPowerState NewState)
+{
+	SkillPowerState = NewState;
+
+	RefreshSkillPowerVisual();
+}
+
+void AAmiyaDemoCharacter::OnRep_SkillPowerState()
+{
+	RefreshSkillPowerVisual();
+}
+
+void AAmiyaDemoCharacter::MulticastDrawThunderstormSphere_Implementation(FVector Center, float NewRadius)
+{
+	DrawDebugSphere(GetWorld(), Center, NewRadius, 24, FColor::Purple, false, 1.5f, 0, 3.f);
+}
+
+float AAmiyaDemoCharacter::GetUltimateRemainingTime() const
+{
+	if (!bIsUltimateActive)
+	{
+		return 0.f;
+	}
+
+	const AGameStateBase* GameState = GetWorld()->GetGameState();
+
+	if (!GameState)
+	{
+		return 0.f;
+	}
+
+	return FMath::Max(0.f, UltimateEndTime - GameState->GetServerWorldTimeSeconds());
+}
+
+void AAmiyaDemoCharacter::TryShuttle()
+{
+	if (HasAuthority())
+	{
+		HandleShuttleOnServer();
+	}
+	else
+	{
+		ServerTryShuttle();
+	}
+}
+
+void AAmiyaDemoCharacter::ServerTryShuttle_Implementation()
+{
+	HandleShuttleOnServer();
+}
+
+void AAmiyaDemoCharacter::StartParryState()   // «Î«Ûø™ º
+{
+	if (bIsChainLightningAiming)
+	{
+		CancelChainLightningAim();
+	}
+
+	if (HasAuthority())
+	{
+		HandleStartParryOnServer();
+	}
+	else
+	{
+		ServerStartParry();
+	}
+}
+
+void AAmiyaDemoCharacter::HandleParryInput()
+{
+	if (bIsUltimateActive)
+	{
+		TryShuttle();
+		return;
+	}
+
+	StartParryState();
+}
+
+void AAmiyaDemoCharacter::HandleStartParryOnServer()
+{
+	if (!HasAuthority())
+	{
+		return;
+	}
+
+	if (bIsDead ||
+		bIsUltimateActive ||
+		bIsParrying ||
+		bIsParryOnCooldown)
+	{
+		return;
+	}
+
+	bIsParrying = true;
+	bIsPerfectParrying = true;
+
+	GetWorldTimerManager().SetTimer(
+		PerfectParryTimer,
+		this,
+		&AAmiyaDemoCharacter::EndPerfectParry,
+		PerfectParryDuration,
+		false
+	);
+
+	GetWorldTimerManager().SetTimer(
+		ParryTimer,
+		this,
+		&AAmiyaDemoCharacter::EndParryState,
+		ParryDuration,
+		false
+	);
+
+	RefreshParryPresentation();
+}
+
+void AAmiyaDemoCharacter::ServerStartParry_Implementation()
+{
+	HandleStartParryOnServer();
+}
+
+void AAmiyaDemoCharacter::HandleShuttleOnServer()  // ∑¿÷πø®«Ωø€¥Œ ˝
+{
+	if (!bIsUltimateActive)
+	{
+		return;
+	}
+
+	if (RemainingShuttleCharges <= 0)
+	{
+		return;
+	}
+
+	if (!PerformShuttle())  // »Áπ˚À≤“∆ ß∞‹£®ø®«Ω£©£¨≤ªø€¥Œ ˝
+	{
+		return;
+	}
+
+	StartShuttle();   // ÷¥––Œﬁµ–¬ﬂº≠
+
+	--RemainingShuttleCharges;
+	if (HasAuthority())
+	{
+		OnShuttleChargesChanged.Broadcast(RemainingShuttleCharges);
+	}
+}
+
+void AAmiyaDemoCharacter::MulticastDrawDebugLine_Implementation(FVector Start, FVector End, FColor Color)
+{
+	DrawDebugLine(GetWorld(), Start, End, Color, false, 0.75f, 0, 5.f);
+}
+
+void AAmiyaDemoCharacter::ClientPlayPerfectParryFeedback_Implementation()
+{
+	StartPerfectParryFeedback();
+}
+
+void AAmiyaDemoCharacter::RequestCancelParry()
+{
+	if (!bIsParrying || bParryCancelRequestSent)
+	{
+		return;
+	}
+
+	bParryCancelRequestSent = true;
+
+	if (HasAuthority())
+	{
+		EndParryState();
+		bParryCancelRequestSent = false;
+	}
+	else
+	{
+		ServerCancelParry();
+	}
+}
+
+void AAmiyaDemoCharacter::ServerCancelParry_Implementation()
+{
+	EndParryState();
 }

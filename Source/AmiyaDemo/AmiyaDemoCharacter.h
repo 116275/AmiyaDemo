@@ -162,6 +162,7 @@ public:
 
 private:  // 自定义参数
 
+	UPROPERTY(Replicated)
 	float CurrentHealth = 250.f;
 
 	UPROPERTY(EditAnywhere, Category = "Health")
@@ -179,7 +180,12 @@ private:  // 自定义参数
 	UPROPERTY(EditAnywhere, Category = "Energy")
 	int32 MaxEnergy = 8;
 
+	UPROPERTY(ReplicatedUsing = OnRep_CurrentEnergy)
 	int32 CurrentEnergy = 3;
+
+	UFUNCTION()
+	void OnRep_CurrentEnergy();
+
 	int32 EnergyRegen = 1;
 
 	UPROPERTY(EditAnywhere, Category = "Energy")
@@ -198,7 +204,14 @@ private:  // 自定义参数
 	UPROPERTY(EditAnywhere, Category = "Parry")
 	float PerfectParryDuration = 0.2f;
 
+	UPROPERTY(ReplicatedUsing = OnRep_IsParrying)
 	bool bIsParrying = false;
+
+	UFUNCTION()
+	void OnRep_IsParrying();
+
+	void RefreshParryPresentation();
+
 	bool bIsPerfectParrying = false;
 
 	FTimerHandle ParryTimer;
@@ -321,7 +334,7 @@ private:
 	UPROPERTY(EditAnywhere, Category = "Chain Lightning")
 	int32 ChainLightningEnergyCost = 2;
 
-	void CastChainLightning(AEnemyCharacter* Target, ESkillPowerState CastState);
+	void CastChainLightning(AEnemyCharacter* Target);
 
 	// 优先攻击未被跳跃的敌人，最多跳三次
 	TSet<AEnemyCharacter*> VisitedTargets;
@@ -334,7 +347,13 @@ private:
 	UPROPERTY(EditAnywhere, Category = "Chain Lightning")
 	float ChainLightningMaxCastDistance = 900.f;   // 链式闪电最大施法距离
 
+	UPROPERTY(ReplicatedUsing = OnRep_IsDead)
 	bool bIsDead = false;
+
+	UFUNCTION()
+	void OnRep_IsDead();
+
+	void RefreshDeathPresentation();
 
 	UPROPERTY(EditAnywhere, Category = "Death")
 	float DeathDestroyDelay = 3.f;
@@ -349,11 +368,24 @@ private:
 
 	void SpawnThunderstormAt(const FVector& Center, float NowRadius = 400.f, float NowDamage = 25.f);
 
+	UPROPERTY(ReplicatedUsing = OnRep_IsSprinting)
 	bool bIsSprinting = false;  // 是否在冲刺状态
+
+	UFUNCTION(Server, Reliable)
+	void ServerSetSprinting(bool bNewSprinting);
+
+	UFUNCTION()
+	void OnRep_IsSprinting();
 
 	void RefreshMoveSpeed();
 
+	UPROPERTY(ReplicatedUsing = OnRep_UltimateActive)
 	bool bIsUltimateActive = false;   // 是否在放大招状态
+
+	void ApplyUltimateState();
+
+	UFUNCTION()
+	void OnRep_UltimateActive();
 
 	UPROPERTY(EditAnywhere, Category = "Ultimate")
 	int32 UltimateEnergyCost = 6;
@@ -401,7 +433,15 @@ private:
 
 	void ApplyShuttlePathDamage(const FVector& Start, const FVector& End);
 
+	UPROPERTY(Replicated)
 	bool bIsShuttling = false;
+
+	void TrySetShuttling(bool bNewShuttling);
+
+	UFUNCTION(Server, Reliable)
+	void ServerSetShuttling(bool bNewShuttling);
+
+	void HandleSetSetShuttling(bool bNewShuttling);
 
 	UPROPERTY(EditAnywhere, Category = "Ultimate|Shuttle")
 	float ShuttleDuration = 0.25f;   // 穿梭期间无敌
@@ -415,10 +455,21 @@ private:
 
 public:
 
+	bool IsDead() const
+	{
+		return bIsDead;
+	}
+
 	UPROPERTY(BlueprintAssignable, Category = "Energy")
 	FOnEnergyChanged OnEnergyChanged;
 
+	UPROPERTY(ReplicatedUsing = OnRep_SkillPowerState)
 	ESkillPowerState SkillPowerState = ESkillPowerState::Base;
+
+	UFUNCTION()
+	void OnRep_SkillPowerState();
+
+	void RefreshSkillPowerVisual();
 
 	void TryUpgradeSkillState();  // 尝试升级
 	void SetSkillPowerState(ESkillPowerState NewState);    // 直接改变强化状态
@@ -437,7 +488,11 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Ultimate")
 	int32 MaxShuttleCharges = 3;
 
+	UPROPERTY(ReplicatedUsing = OnRep_ShuttleCharges)
 	int32 RemainingShuttleCharges = 0;
+
+	UFUNCTION()
+	void OnRep_ShuttleCharges();
 
 	UPROPERTY(BlueprintAssignable, Category = "Ultimate")
 	FOnShuttleChargesChanged OnShuttleChargesChanged;
@@ -454,5 +509,62 @@ public:
 	UPROPERTY(BlueprintAssignable, Category = "Ultimate")
 	FOnUltimateStateChanged OnUltimateStateChanged;
 
+	UFUNCTION(Server, Reliable)
+	void ServerAttack();
+
+	UFUNCTION(NetMulticast, Unreliable)
+	void MulticastAttack();
+
+	void HandleAttackOnServer();
+
+	UFUNCTION(Server, Reliable)
+	void ServerTryChainLightning(AEnemyCharacter* Target);
+
+	UFUNCTION(NetMulticast, Unreliable)
+	void MulticastDrawDebugSphere(FVector StormCenter, float NowRadius);
+
+	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
+
+	UFUNCTION(Server, Reliable)
+	void ServerTryUpgradeSkillState();
+
+	void HandleUpgradeSkillStateOnServer();
+
+	UFUNCTION(Server, Reliable)
+	void ServerStartUltimate();
+
+	void HandleStartUltimateOnServer();
+
+	UFUNCTION(NetMulticast, Unreliable)
+	void MulticastDrawThunderstormSphere(FVector Center, float NewRadius);
+
+	UPROPERTY(Replicated)
+	float UltimateEndTime = 0.f;
+
+	UFUNCTION(Server, Reliable)
+	void ServerTryShuttle();
+
+	void HandleShuttleOnServer();
+
+	UFUNCTION(NetMulticast, Unreliable)
+	void MulticastDrawDebugLine(FVector Start, FVector End, FColor Color);
+
+	UFUNCTION(Server, Reliable)
+	void ServerStartParry();
+
+	void HandleStartParryOnServer();
+
+	UFUNCTION(Client, Reliable)
+	void ClientPlayPerfectParryFeedback();
+
+	UFUNCTION(Server, Reliable)
+	void ServerCancelParry();
+
+	void RequestCancelParry();
+
+	bool bParryCancelRequestSent = false;  // 避免移动打断重复发请求
+
+	UPROPERTY(Replicated)
+	float ParryCooldownEndTime = 0.f;
 };
 

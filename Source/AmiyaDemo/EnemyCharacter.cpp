@@ -10,6 +10,7 @@
 #include "AmiyaDemoCharacter.h"
 #include "ThunderstormDamageType.h"
 #include "Engine/DamageEvents.h"
+#include "Net/UnrealNetwork.h"
 
 // Sets default values
 AEnemyCharacter::AEnemyCharacter()
@@ -17,6 +18,7 @@ AEnemyCharacter::AEnemyCharacter()
  	// Set this character to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
 	PrimaryActorTick.bCanEverTick = false;
 
+	bReplicates = true;
 
 	// 不让 Controller 强行决定身体朝向，而让 CharacterMovement 根据实际移动方向旋转角色
 	bUseControllerRotationYaw = false;
@@ -70,14 +72,17 @@ float AEnemyCharacter::TakeDamage(float DamageAmount, FDamageEvent const& Damage
 	return DamageApplied;
 }
 
-void AEnemyCharacter::HandleDeath(AController* KillerController, AActor* DamageCauser)
+void AEnemyCharacter::HandleDeath(AController* KillerController, AActor* DamageCauser)  // 服务器判断
 {
-	if (bIsDead)
+	if (bIsDead || !HasAuthority())
 	{
 		return;
 	}
 
-	bIsDead = true;
+	MulticastPlayDeath();
+
+	// AI 不再控制尸体
+	DetachFromControllerPendingDestroy();
 
 	if (bCountsTowardKillGoal)
 	{
@@ -87,12 +92,25 @@ void AEnemyCharacter::HandleDeath(AController* KillerController, AActor* DamageC
 		}
 	}
 
+	// 尸体保留一会，再真正销毁 Actor
+	SetLifeSpan(DeathDestroyDelay);
+
+	if (KillerController)
+	{
+		if (AAmiyaDemoCharacter* Killer = Cast<AAmiyaDemoCharacter>(KillerController->GetPawn()))
+		{
+			Killer->RewardEnergyForKill(1);
+		}
+	}
+}
+
+void AEnemyCharacter::MulticastPlayDeath_Implementation()
+{
+	bIsDead = true;
+
 	// 停止角色移动
 	GetCharacterMovement()->StopMovementImmediately();
 	GetCharacterMovement()->DisableMovement();
-
-	// AI 不再控制尸体
-	DetachFromControllerPendingDestroy();
 
 	// Capsule 不再挡路
 	GetCapsuleComponent()->SetCollisionEnabled(
@@ -108,17 +126,6 @@ void AEnemyCharacter::HandleDeath(AController* KillerController, AActor* DamageC
 	GetMesh()->WakeAllRigidBodies();
 
 	GetMesh()->SetCollisionResponseToChannel(ECC_Visibility, ECR_Ignore);  // 尸体不挡子弹
-
-	// 尸体保留一会，再真正销毁 Actor
-	SetLifeSpan(DeathDestroyDelay);
-
-	if (KillerController)
-	{
-		if (AAmiyaDemoCharacter* Killer = Cast<AAmiyaDemoCharacter>(KillerController->GetPawn()))
-		{
-			Killer->RewardEnergyForKill(1);
-		}
-	}
 }
 
 void AEnemyCharacter::AttackTarget(AActor* Target)
@@ -145,7 +152,8 @@ void AEnemyCharacter::AttackTarget(AActor* Target)
 
 	FVector DebugEnd = bHit ? HitResult.ImpactPoint : End;
 
-	DrawDebugLine(GetWorld(), Start, DebugEnd, bHit ? FColor::Green : FColor::Red, false, 1.f, 0, 2.f);
+	//DrawDebugLine(GetWorld(), Start, DebugEnd, bHit ? FColor::Green : FColor::Red, false, 1.f, 0, 2.f);
+	ServerDrawDebugLine(Start, DebugEnd, bHit ? FColor::Green : FColor::Red);
 
 	if (bHit)
 	{
@@ -179,7 +187,7 @@ void AEnemyCharacter::SetChainLightningTargetMaterial(bool bIsTarget)
 
 void AEnemyCharacter::ApplyParalysis()
 {
-	if (bIsDead)
+	if (!HasAuthority() || bIsDead)
 	{
 		return;
 	}
@@ -204,6 +212,8 @@ void AEnemyCharacter::ApplyParalysis()
 	}
 
 	GetWorld()->GetTimerManager().SetTimer(ParalysisTimer, this, &AEnemyCharacter::EndParalysis, Duration, false);
+
+	RefreshParalysisPresentation();
 }
 
 void AEnemyCharacter::EndParalysis()
@@ -213,6 +223,11 @@ void AEnemyCharacter::EndParalysis()
 
 void AEnemyCharacter::ClearParalysis()
 {
+	if (!HasAuthority())
+	{
+		return;
+	}
+
 	GetWorld()->GetTimerManager().ClearTimer(ParalysisTimer);
 
 	if (!bIsParalyzed)
@@ -226,6 +241,18 @@ void AEnemyCharacter::ClearParalysis()
 	{
 		GetCharacterMovement()->SetMovementMode(MOVE_Walking);
 	}
+
+	RefreshParalysisPresentation();
+}
+
+void AEnemyCharacter::OnRep_IsParalyzed()
+{
+	RefreshParalysisPresentation();
+}
+
+void AEnemyCharacter::RefreshParalysisPresentation()
+{
+	// 目前动画由蓝图驱动，先不写逻辑了
 }
 
 void AEnemyCharacter::BeConsumedByBoss()
@@ -242,4 +269,23 @@ void AEnemyCharacter::BeConsumedByBoss()
 
 void AEnemyCharacter::CancelCurrentAttack()
 {
+}
+
+void AEnemyCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const 
+{
+	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+
+	DOREPLIFETIME(AEnemyCharacter, CurrentHealth);
+
+	DOREPLIFETIME(AEnemyCharacter, bIsParalyzed);
+}
+
+void AEnemyCharacter::MulticastDrawDebugLine_Implementation(FVector Start, FVector End, FColor Color)
+{
+	DrawDebugLine(GetWorld(), Start, End, Color, false, 0.75f, 0, 5.f);
+}
+
+void AEnemyCharacter::ServerDrawDebugLine_Implementation(FVector Start, FVector End, FColor Color)
+{
+	MulticastDrawDebugLine(Start, End, Color);
 }

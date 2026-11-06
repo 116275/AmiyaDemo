@@ -7,6 +7,8 @@
 #include "Components/CapsuleComponent.h"
 #include "NavigationSystem.h"
 #include "AmiyaDemoGameMode.h"
+#include "Net/UnrealNetwork.h"
+#include "AmiyaDemoGameState.h"
 
 ABossCharacter::ABossCharacter()
 {
@@ -56,9 +58,9 @@ void ABossCharacter::HandleDeath(
 
 	Super::HandleDeath(KillerController, DamageCauser);
 
-	if (AAmiyaDemoGameMode* GameMode = Cast<AAmiyaDemoGameMode>(UGameplayStatics::GetGameMode(this)))
+	if (AAmiyaDemoGameState* GS = Cast<AAmiyaDemoGameState>(UGameplayStatics::GetGameState(this)))
 	{
-		GameMode->FinishGame(EGameResult::Victory);
+		GS->SetGameResult(EGameResult::Victory);
 	}
 }
 
@@ -84,64 +86,6 @@ float ABossCharacter::GetParalysisDurationScale() const
 	}
 
 	return 0.f;
-}
-
-void ABossCharacter::AttackTarget(AActor* Target)
-{
-	if (!Target || IsDead() || IsParalyzed() || bIsAttacking || bIsTimeDeleting)
-	{
-		return;
-	}
-
-	if (!PunchMontage)
-	{
-		return;
-	}
-
-	UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance();
-
-	if (!AnimInstance)
-	{
-		return;
-	}
-
-	FVector ToTarget = Target->GetActorLocation() - GetActorLocation();
-
-	ToTarget.Z = 0.f;
-
-	if (!ToTarget.IsNearlyZero())  // 防止除以0错误
-	{
-		const FRotator TargetRotation = ToTarget.Rotation();
-
-		SetActorRotation(
-			FRotator(
-				0.f,
-				TargetRotation.Yaw,
-				0.f
-			)
-		);
-	}
-
-	const float Duration = AnimInstance->Montage_Play(PunchMontage);
-
-	if (Duration <= 0.f)
-	{
-		return;
-	}
-
-	bIsAttacking = true;
-
-	FOnMontageEnded EndDelegate;
-
-	EndDelegate.BindUObject(
-		this,
-		&ABossCharacter::OnPunchMontageEnded
-	);
-
-	AnimInstance->Montage_SetEndDelegate(
-		EndDelegate,
-		PunchMontage   // 当且仅当 PunchMontage 播放结束或被打断时才触发刚刚绑定的委托
-	);
 }
 
 void ABossCharacter::OnPunchMontageEnded(UAnimMontage* Montage, bool bInterrupted)
@@ -348,7 +292,7 @@ void ABossCharacter::AbsorbRemainingMinions()
 
 void ABossCharacter::StartTimeDeletion()
 {
-	if (bIsTimeDeleting || IsDead() || CurrentPhase != EBossPhase::Phase2)
+	if (bIsTimeDeleting || IsDead() || CurrentPhase != EBossPhase::Phase2 || !HasAuthority())
 	{
 		return;
 	}
@@ -410,7 +354,7 @@ void ABossCharacter::StartTimeDeletion()
 
 void ABossCharacter::EndTimeDeletion()
 {
-	if (!bIsTimeDeleting)
+	if (!bIsTimeDeleting || !HasAuthority())
 	{
 		return;
 	}
@@ -473,7 +417,7 @@ void ABossCharacter::EndTimeDeletion()
 			BossController->StopMovement();
 		}
 
-		AttackTarget(PlayerPawn);
+		TryAttack(PlayerPawn);
 	}
 
 
@@ -548,4 +492,103 @@ void ABossCharacter::CancelCurrentAttack()
 	}
 
 	bIsAttacking = false;
+}
+
+void ABossCharacter::OnRep_TimeDeletion()
+{
+	OnTimeDeletionChanged.Broadcast(bIsTimeDeleting);
+}
+
+void ABossCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
+{
+	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+
+	DOREPLIFETIME(ABossCharacter, bIsTimeDeleting);
+}
+
+void ABossCharacter::TryAttack(AActor* Target)
+{
+	if (!HasAuthority())
+	{
+		AttackTarget(Target);
+	}
+	else
+	{
+		ServerAttack(Target);
+	}
+}
+
+void ABossCharacter::ServerAttack_Implementation(AActor* Target)
+{
+	AttackTarget(Target);
+}
+
+void ABossCharacter::MulticastAttack_Implementation()
+{
+	UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance();
+
+	if (!AnimInstance)
+	{
+		return;
+	}
+
+	const float Duration = AnimInstance->Montage_Play(PunchMontage);
+
+	if (Duration <= 0.f)
+	{
+		return;
+	}
+
+	FOnMontageEnded EndDelegate;
+
+	EndDelegate.BindUObject(
+		this,
+		&ABossCharacter::OnPunchMontageEnded
+	);
+
+	AnimInstance->Montage_SetEndDelegate(
+		EndDelegate,
+		PunchMontage   // 当且仅当 PunchMontage 播放结束或被打断时才触发刚刚绑定的委托
+	);
+}
+
+void ABossCharacter::AttackTarget(AActor* Target)
+{
+	if (!Target || IsDead() || IsParalyzed() || bIsAttacking || bIsTimeDeleting || !HasAuthority())
+	{
+		return;
+	}
+
+	if (!PunchMontage)
+	{
+		return;
+	}
+
+	UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance();
+
+	if (!AnimInstance)
+	{
+		return;
+	}
+
+	FVector ToTarget = Target->GetActorLocation() - GetActorLocation();
+
+	ToTarget.Z = 0.f;
+
+	if (!ToTarget.IsNearlyZero())  // 防止除以0错误
+	{
+		const FRotator TargetRotation = ToTarget.Rotation();
+
+		SetActorRotation(
+			FRotator(
+				0.f,
+				TargetRotation.Yaw,
+				0.f
+			)
+		);
+	}
+
+	bIsAttacking = true;
+
+	MulticastAttack();
 }

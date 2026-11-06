@@ -11,10 +11,11 @@
 #include "TimerManager.h"
 #include "Engine/TargetPoint.h"
 #include "AmiyaDemoGameInstance.h"
+#include "AmiyaDemoGameState.h"
 
 AAmiyaDemoGameMode::AAmiyaDemoGameMode()
 {
-	// stub
+	GameStateClass = AAmiyaDemoGameState::StaticClass();
 }
 
 void AAmiyaDemoGameMode::BeginPlay()
@@ -36,21 +37,20 @@ void AAmiyaDemoGameMode::BeginPlay()
 
 void AAmiyaDemoGameMode::AddCoin()  // 拾取到了金币
 {
-
-	ActiveCoin--;
-
-	if (CoinCount >= CoinGoal)
+	AAmiyaDemoGameState* GS = GetAmiyaGameState();
+	if (!GS)
 	{
 		return;
 	}
 
-	CoinCount++;
-	
-	if (CoinCount >= CoinGoal)
+	ActiveCoin--;
+
+	if (GS->GetCoinCount() < GS->GetCoinGoal())
 	{
-		// Handle goal reached
+		GS->SetCoinCount(GS->GetCoinCount() + 1);
 	}
-	else
+
+	if (GS->GetCoinCount() < GS->GetCoinGoal())
 	{
 		SpawnCoin();
 	}
@@ -95,15 +95,26 @@ bool AAmiyaDemoGameMode::SpawnCoin()  // 补充一枚金币
 
 void AAmiyaDemoGameMode::AddKill()
 {
+	AAmiyaDemoGameState* GS = GetAmiyaGameState();
+	if (!GS)
+	{
+		return;
+	}
 
 	ActiveEnemies--;
 
-	if (KillCount < KillGoal)
+	if (GS->GetKillCount() < GS->GetKillGoal())
 	{
-		KillCount++;
+		GS->SetKillCount(GS->GetKillCount() + 1);
+	}
 
-		// 5.0s后补充敌人
+	if (GS->GetKillCount() < GS->GetKillGoal())
+	{
 		StartEnemyRefill();
+	}
+	else
+	{
+		GetWorldTimerManager().ClearTimer(EnemyRefillTimer);
 	}
 
 	TryStartBossFight();
@@ -121,12 +132,19 @@ void AAmiyaDemoGameMode::StartEnemyRefill()
 
 void AAmiyaDemoGameMode::TryRefillEnemy()
 {
-	const int RemainingKills = KillGoal - KillCount;
-	const int DesiredKills = FMath::Min(MaxActiveEnemies, RemainingKills);
-
-	if (ActiveEnemies >= DesiredKills)
+	AAmiyaDemoGameState* GS = GetAmiyaGameState();
+	if (!GS)
 	{
-		GetWorld()->GetTimerManager().ClearTimer(EnemyRefillTimer);
+		return;
+	}
+
+	const int RemainingKills = GS->GetKillGoal() - GS->GetKillCount();
+
+	const int DesiredEnemies = FMath::Min(MaxActiveEnemies, RemainingKills);
+
+	if (ActiveEnemies >= DesiredEnemies)
+	{
+		GetWorldTimerManager().ClearTimer(EnemyRefillTimer);
 		return;
 	}
 
@@ -206,7 +224,13 @@ void AAmiyaDemoGameMode::TryStartBossFight()   // 能不能生成
 		return;
 	}
 
-	if (CoinCount < CoinGoal || KillCount < KillGoal)
+	AAmiyaDemoGameState* GS = GetAmiyaGameState();
+	if (!GS)
+	{
+		return;
+	}
+
+	if (GS->GetCoinCount() < GS->GetCoinGoal() || GS->GetKillCount() < GS->GetKillGoal())
 	{
 		return;
 	}
@@ -254,22 +278,15 @@ bool AAmiyaDemoGameMode::SpawnBoss()  // 生成Boss
 
 	bBossSpawned = true;
 	CurrentBoss = Boss;
-	OnBossSpawned.Broadcast(Boss);
-	return true;
-}
 
-void AAmiyaDemoGameMode::FinishGame(EGameResult Result)
-{
-	if (GameResult != EGameResult::None)
+	AAmiyaDemoGameState* GS = GetAmiyaGameState();
+
+	if (GS)
 	{
-		return;
+		GS->SetCurrentBoss(Boss);
 	}
 
-	GameResult = Result;
-
-	GetWorld()->GetTimerManager().ClearTimer(EnemyRefillTimer);
-
-	OnResultChanged.Broadcast(Result);
+	return true;
 }
 
 UClass* AAmiyaDemoGameMode::GetDefaultPawnClassForController_Implementation(AController* InController)
@@ -283,4 +300,37 @@ UClass* AAmiyaDemoGameMode::GetDefaultPawnClassForController_Implementation(ACon
 	}
 
 	return Super::GetDefaultPawnClassForController_Implementation(InController);
+}
+
+AAmiyaDemoGameState* AAmiyaDemoGameMode::GetAmiyaGameState() const
+{
+	return GetGameState<AAmiyaDemoGameState>();
+}
+
+int32 AAmiyaDemoGameMode::GetCoinCount() const
+{
+	const AAmiyaDemoGameState* GS = GetGameState<AAmiyaDemoGameState>();
+
+	return GS ? GS->GetCoinCount() : 0;
+}
+
+int32 AAmiyaDemoGameMode::GetCoinGoal() const
+{
+	const AAmiyaDemoGameState* GS = GetGameState<AAmiyaDemoGameState>();
+
+	return GS ? GS->GetCoinGoal() : 0;
+}
+
+int32 AAmiyaDemoGameMode::GetKillCount() const
+{
+	const AAmiyaDemoGameState* GS = GetGameState<AAmiyaDemoGameState>();
+
+	return GS ? GS->GetKillCount() : 0;
+}
+
+int32 AAmiyaDemoGameMode::GetKillGoal() const
+{
+	const AAmiyaDemoGameState* GS = GetGameState<AAmiyaDemoGameState>();
+
+	return GS ? GS->GetKillGoal() : 0;
 }

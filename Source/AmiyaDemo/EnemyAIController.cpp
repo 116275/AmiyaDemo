@@ -9,6 +9,7 @@
 #include "Navigation/PathFollowingComponent.h"
 #include "NavigationSystem.h"
 #include "NavigationPath.h"
+#include "AmiyaDemoCharacter.h"
 
 void AEnemyAIController::OnPossess(APawn* InPawn)
 {
@@ -21,10 +22,15 @@ void AEnemyAIController::OnPossess(APawn* InPawn)
 
 void AEnemyAIController::UpdateChase()
 {
-	APawn* PlayerPawn = UGameplayStatics::GetPlayerPawn(GetWorld(), 0);
+	CurrentTarget = MakeWeakObjectPtr(FindNearestPlayer());
 
-	if (!GetPawn() || !PlayerPawn)
+	APawn* PlayerPawn = CurrentTarget.Get();
+
+	if (!GetPawn() || !IsValid(PlayerPawn))
 	{
+		StopMovement();
+		StopAttack();
+		CombatState = EEnemyCombatState::Chasing;
 		return;
 	}
 
@@ -101,12 +107,15 @@ void AEnemyAIController::StopAttack()
 
 void AEnemyAIController::AttackOnce()
 {
-	APawn* PlayerPawn = UGameplayStatics::GetPlayerPawn(GetWorld(), 0);
+	APawn* PlayerPawn = CurrentTarget.Get();
 
 	AEnemyCharacter* Enemy = Cast<AEnemyCharacter>(GetPawn());
 
-	if (!PlayerPawn || !Enemy)
+	if (!IsValid(PlayerPawn) || !Enemy)
 	{
+		StopMovement();
+		StopAttack();
+		CombatState = EEnemyCombatState::Chasing;
 		return;
 	}
 
@@ -198,4 +207,54 @@ bool AEnemyAIController::TryMoveNearPlayer(APawn* PlayerPawn)
 	MoveToLocation(BestLocation, ApproachAcceptDistance);
 
 	return true;
+}
+
+APawn* AEnemyAIController::FindNearestPlayer() const
+{
+	if (!GetWorld() || !GetPawn())
+	{
+		return nullptr;
+	}
+
+	APawn* NearestPawn = nullptr;
+	float NearestDistanceSq = TNumericLimits<float>::Max();
+
+	const FVector EnemyLocation = GetPawn()->GetActorLocation();
+
+	for (FConstPlayerControllerIterator It = GetWorld()->GetPlayerControllerIterator(); It; ++It)
+	{
+		APlayerController* PlayerController = It->Get();
+
+		if (!PlayerController)
+		{
+			continue;
+		}
+
+		APawn* PlayerPawn = PlayerController->GetPawn();
+
+		if (!PlayerPawn)
+		{
+			continue;
+		}
+
+		AAmiyaDemoCharacter* Player = Cast<AAmiyaDemoCharacter>(PlayerPawn);
+
+		if (!Player || Player->IsDead())
+		{
+			continue;
+		}
+
+		const float DistanceSq = FVector::DistSquared(
+			EnemyLocation,
+			PlayerPawn->GetActorLocation()
+		);
+
+		if (DistanceSq < NearestDistanceSq)
+		{
+			NearestDistanceSq = DistanceSq;
+			NearestPawn = PlayerPawn;
+		}
+	}
+
+	return NearestPawn;
 }

@@ -8,28 +8,10 @@
 #include "BossCharacter.h"
 #include "AmiyaDemoGameMode.generated.h"
 
-UENUM(BlueprintType)
-enum class EGameResult : uint8
-{
-	None,
-	Victory,
-	Defeat
-};
-
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(
-	FOnResultChanged,
-	EGameResult,
-	Result
-);
+class AAmiyaDemoGameState;
 
 class AACoinActor;
 class ABossCharacter;
-
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(
-	FOnBossSpawned,
-	ABossCharacter*,
-	Boss
-);
 
 UCLASS(abstract)
 class AAmiyaDemoGameMode : public AGameModeBase
@@ -59,8 +41,6 @@ private:
 	UPROPERTY(EditAnywhere, Category = "Boss|Spawn")
 	FName BossSpawnTag = TEXT("BossSpawn");
 
-	EGameResult GameResult = EGameResult::None;
-
 public:
 
 	UPROPERTY(EditAnywhere, Category = "Coin")
@@ -75,29 +55,17 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Coin")
 	float CoinSpawnHeight = 50.f;  // 金币生成的高度
 
-	UFUNCTION(BlueprintPure, Category = "Coin")
-	int32 GetCoinCount() const
-	{
-		return CoinCount;
-	}
+	UFUNCTION(BlueprintPure)
+	int32 GetCoinCount() const;
 
-	UFUNCTION(BlueprintPure, Category = "Coin")
-	int32 GetCoinGoal() const
-	{
-		return CoinGoal;
-	}
+	UFUNCTION(BlueprintPure)
+	int32 GetCoinGoal() const;
 
-	UFUNCTION(BlueprintPure, Category = "Kill")
-	int32 GetKillCount()
-	{
-		return KillCount;
-	}
+	UFUNCTION(BlueprintPure)
+	int32 GetKillCount() const;
 
-	UFUNCTION(BlueprintPure, Category = "Kill")
-	int32 GetKillGoal()
-	{
-		return KillGoal;
-	}
+	UFUNCTION(BlueprintPure)
+	int32 GetKillGoal() const;
 
 	UPROPERTY(EditAnywhere, Category = "Enemy Spawn")
 	TSubclassOf<AEnemyCharacter> EnemyClass;
@@ -141,9 +109,6 @@ public:
 
 	void TryRefillEnemy();
 
-	UPROPERTY(BlueprintAssignable, Category = "Boss|Spawn")
-	FOnBossSpawned OnBossSpawned;
-
 	UPROPERTY()
 	TObjectPtr<ABossCharacter> CurrentBoss = nullptr;
 
@@ -153,13 +118,12 @@ public:
 		return CurrentBoss;
 	}
 
-	UPROPERTY(BlueprintAssignable, Category = "GameResult")
-	FOnResultChanged OnResultChanged;
-
-	void FinishGame(EGameResult Result);
-
 protected:
 
 	virtual UClass* GetDefaultPawnClassForController_Implementation(AController* InController) override;
+
+private:
+
+	AAmiyaDemoGameState* GetAmiyaGameState() const;
 
 };

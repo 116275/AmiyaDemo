@@ -39,7 +39,13 @@ private:
 	UPROPERTY(EditAnywhere, Category = "Death")
 	float DeathDestroyDelay = 5.f;
 
+	UPROPERTY(ReplicatedUsing = OnRep_IsParalyzed)
 	bool bIsParalyzed = false;  // ÊÇ·ñ´¦ÓÚÂé±Ô×´Ì¬
+
+	UFUNCTION()
+	void OnRep_IsParalyzed();
+
+	void RefreshParalysisPresentation();
 
 	UPROPERTY(EditAnywhere, Category = "Paralysis")
 	float ParalysisDuration = 5.f;
@@ -105,10 +111,15 @@ public:
 
 protected:
 
+	UPROPERTY(BlueprintReadOnly, Replicated, Category = "Health")
 	float CurrentHealth = 150.0f;
 
 	UPROPERTY(EditAnywhere, Category = "Health")
 	float MaxHealth = 150.0f;
+
+	virtual void GetLifetimeReplicatedProps(
+		TArray<FLifetimeProperty>& OutLifetimeProps
+	)const override;
 
 	virtual void HandleDeath(AController* KillerController, AActor* DamageCauser);
 
@@ -144,5 +155,14 @@ public:
 	}
 
 	void BeConsumedByBoss();
+
+	UFUNCTION(NetMulticast, Reliable)
+	void MulticastPlayDeath();
+
+	UFUNCTION(NetMulticast, Unreliable)
+	void MulticastDrawDebugLine(FVector Start, FVector End, FColor Color);
+
+	UFUNCTION(Server, Unreliable)
+	void ServerDrawDebugLine(FVector Start, FVector End, FColor Color);
 
 };
