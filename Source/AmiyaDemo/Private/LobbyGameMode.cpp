@@ -7,7 +7,11 @@
 
 ALobbyGameMode::ALobbyGameMode()
 {
+
+    bUseSeamlessTravel = true;
+
     PlayerStateClass = ALobbyPlayerState::StaticClass();
+
 }
 
 void ALobbyGameMode::PostLogin(APlayerController* NewPlayer)

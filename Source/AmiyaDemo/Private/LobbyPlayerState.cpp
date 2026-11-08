@@ -51,3 +51,18 @@ void ALobbyPlayerState::OnRep_IsHost()
         GS->OnLobbyChanged.Broadcast();
     }
 }
+
+void ALobbyPlayerState::CopyProperties(APlayerState* PlayerState)
+{
+    Super::CopyProperties(PlayerState);
+
+    ALobbyPlayerState* NewPlayerState = Cast<ALobbyPlayerState>(PlayerState);
+
+    if (!NewPlayerState)
+    {
+        return;
+    }
+
+    NewPlayerState->SelectedCharacter = SelectedCharacter;
+    NewPlayerState->bIsHost = bIsHost;
+}
