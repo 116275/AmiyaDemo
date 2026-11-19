@@ -9,6 +9,7 @@
 #include "AmiyaDemoGameMode.h"
 #include "Net/UnrealNetwork.h"
 #include "AmiyaDemoGameState.h"
+#include "EnemyAIController.h"
 
 ABossCharacter::ABossCharacter()
 {
@@ -396,8 +397,15 @@ void ABossCharacter::EndTimeDeletion()
 
 	GetWorld()->GetTimerManager().ClearTimer(TimeDeletionTimer);
 
+	AEnemyAIController* AIController = Cast<AEnemyAIController>(GetController());
+
 	// ³¢ÊÔÍµÏ®
-	APawn* PlayerPawn = UGameplayStatics::GetPlayerPawn(GetWorld(), 0);
+	if (!AIController)
+	{
+		return;
+	}
+
+	APawn* PlayerPawn = AIController->FindNearestPlayer();
 
 	if (!PlayerPawn)
 	{
