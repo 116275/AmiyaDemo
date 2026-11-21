@@ -20,7 +20,11 @@ public class AmiyaDemo : ModuleRules
 			"UMG",
 			"Slate",
             "NavigationSystem",
-            "AIModule"
+            "AIModule",
+
+            "GameplayAbilities",
+			"GameplayTags",
+			"GameplayTasks"
         });
 
 		PrivateDependencyModuleNames.AddRange(new string[] { });

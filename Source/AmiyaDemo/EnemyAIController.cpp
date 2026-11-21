@@ -237,7 +237,7 @@ APawn* AEnemyAIController::FindNearestPlayer() const
 			continue;
 		}
 
-		AAmiyaDemoCharacter* Player = Cast<AAmiyaDemoCharacter>(PlayerPawn);
+		AAmiyaDemoCharacter* Player = Cast<AAmiyaDemoCharacter>(PlayerPawn);  // 注意到依然无法追踪塔露拉
 
 		if (!Player || Player->IsDead())
 		{
