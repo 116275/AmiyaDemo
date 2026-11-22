@@ -51,6 +51,8 @@ ATalulahCharacter::ATalulahCharacter()
 	GetCharacterMovement()->bOrientRotationToMovement = true;
 	GetCharacterMovement()->RotationRate = FRotator(0.f, 500.f, 0.f);
 
+	GetCharacterMovement()->AirControl = 1.f;
+
 }
 
 void ATalulahCharacter::InputMove(const FInputActionValue& Value)
