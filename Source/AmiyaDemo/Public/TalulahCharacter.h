@@ -16,6 +16,8 @@ class UCameraComponent;
 struct FInputActionValue;
 class USkeletalMeshComponent;
 class UStaticMeshComponent;
+class UCombatAttributeSet;
+struct FOnAttributeChangeData;
 
 UCLASS()
 class AMIYADEMO_API ATalulahCharacter : public ACharacter, public IAbilitySystemInterface
@@ -58,7 +60,12 @@ private:
 	TObjectPtr<UAbilitySystemComponent> ASC;
 
 	UPROPERTY()
-	TObjectPtr<UTalulahAttributeSet> AS;
+	TObjectPtr<UTalulahAttributeSet> TalulahAS;
+
+	UPROPERTY()
+	TObjectPtr<UCombatAttributeSet> CombatAS;
+
+	void OnHealthChanged(const FOnAttributeChangeData& Data);
 
 	UPROPERTY(EditAnywhere, Category = "GAS|Test")
 	TSubclassOf<UGameplayAbility> TestAbilityClass;

@@ -12,6 +12,7 @@
 #include "GameFramework/CharacterMovementComponent.h"
 #include "DrawDebugHelpers.h"
 #include "Components/CapsuleComponent.h"
+#include "CombatAttributeSet.h"
 
 ATalulahCharacter::ATalulahCharacter()
 {
@@ -24,8 +25,11 @@ ATalulahCharacter::ATalulahCharacter()
 
 	ASC->SetReplicationMode(EGameplayEffectReplicationMode::Mixed);
 
-	AS =
-		CreateDefaultSubobject<UTalulahAttributeSet>(TEXT("AttributeSet"));
+	TalulahAS =
+		CreateDefaultSubobject<UTalulahAttributeSet>(TEXT("TalulahAttributeSet"));
+
+	CombatAS =
+		CreateDefaultSubobject<UCombatAttributeSet>(TEXT("CombatAttributeSet"));
 
 	CameraBoom = CreateDefaultSubobject<USpringArmComponent>(TEXT("CameraBoom"));
 	CameraBoom->SetupAttachment(RootComponent);
@@ -85,13 +89,26 @@ void ATalulahCharacter::InputLook(const FInputActionValue& Value)
 	AddControllerPitchInput(Look.Y);
 }
 
-// Called when the game starts or when spawned
 void ATalulahCharacter::BeginPlay()
 {
 	Super::BeginPlay();
+
+	if (ASC)
+	{
+		ASC->GetGameplayAttributeValueChangeDelegate(UCombatAttributeSet::GetHealthAttribute()).AddUObject(
+			this, &ATalulahCharacter::OnHealthChanged
+		);
+	}
 }
 
-// Called to bind functionality to input
+void ATalulahCharacter::OnHealthChanged(const FOnAttributeChangeData& Data)
+{
+	if (HasAuthority() && Data.NewValue <= 0.f && !bIsDead)
+	{
+		HandleDeath();
+	}
+}
+
 void ATalulahCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
 {
 	Super::SetupPlayerInputComponent(PlayerInputComponent);

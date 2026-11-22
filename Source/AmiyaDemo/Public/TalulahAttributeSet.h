@@ -22,24 +22,6 @@ public:
 
 	UTalulahAttributeSet();
 
-	UPROPERTY(BlueprintReadOnly, ReplicatedUsing = OnRep_Health, Category = "Attributes")
-	FGameplayAttributeData Health;
-	ATTRIBUTE_ACCESSORS(UTalulahAttributeSet, Health)
-
-	UPROPERTY(BlueprintReadOnly, ReplicatedUsing = OnRep_MaxHealth, Category = "Attributes")
-	FGameplayAttributeData MaxHealth;
-	ATTRIBUTE_ACCESSORS(UTalulahAttributeSet, MaxHealth)
-
 protected:
-
-	UFUNCTION()
-	void OnRep_Health(const FGameplayAttributeData& OldHealth);
-
-	UFUNCTION()
-	void OnRep_MaxHealth(const FGameplayAttributeData& OldMaxHealth);
-
-	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
-
-	virtual void PostGameplayEffectExecute(const FGameplayEffectModCallbackData& Data) override;
 
 };
