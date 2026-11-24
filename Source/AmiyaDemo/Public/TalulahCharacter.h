@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Character.h"
 #include "AbilitySystemInterface.h"
+#include "GameplayEffect.h"
 #include "TalulahCharacter.generated.h"
 
 class UTalulahAttributeSet;
@@ -18,6 +19,7 @@ class USkeletalMeshComponent;
 class UStaticMeshComponent;
 class UCombatAttributeSet;
 struct FOnAttributeChangeData;
+class UMovementAttributeSet;
 
 UCLASS()
 class AMIYADEMO_API ATalulahCharacter : public ACharacter, public IAbilitySystemInterface
@@ -67,6 +69,8 @@ private:
 
 	void OnHealthChanged(const FOnAttributeChangeData& Data);
 
+	void OnMoveSpeedChanged(const FOnAttributeChangeData& Data);
+
 	UPROPERTY(EditAnywhere, Category = "GAS|Test")
 	TSubclassOf<UGameplayAbility> TestAbilityClass;
 
@@ -93,13 +97,33 @@ private:
 	UPROPERTY(EditDefaultsOnly, Category = "Input")
 	TObjectPtr<UInputAction> MouseLookAction;
 
+	UPROPERTY(EditAnywhere, Category = "Input")
+	TObjectPtr<UInputAction> SprintAction;
+
 	void InputMove(const FInputActionValue& Value);
 	void InputLook(const FInputActionValue& Value);
+
+	void StartSprint();
+	void StopSprint();
+
+	UFUNCTION(Server, Reliable)
+	void ServerStartSprint();
+
+	UFUNCTION(Server, Reliable)
+	void ServerStopSprint();
 
 	UFUNCTION(BlueprintCallable)
 	void PerformAttackTrace();
 
-	UPROPERTY(EditDefaultsOnly, Category = "GAS|Combat")
+	UPROPERTY(EditDefaultsOnly, Category = "GE|Combat")
 	TSubclassOf<UGameplayEffect> BasicAttackDamageEffectClass;
+
+	UPROPERTY()
+	TObjectPtr<UMovementAttributeSet> MovementAS;
+
+	UPROPERTY(EditDefaultsOnly, Category = "GE|Movement")
+	TSubclassOf<UGameplayEffect> SprintEffectClass;
+
+	FActiveGameplayEffectHandle SprintEffectHandle;
 
 };

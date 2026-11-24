@@ -13,6 +13,7 @@
 #include "DrawDebugHelpers.h"
 #include "Components/CapsuleComponent.h"
 #include "CombatAttributeSet.h"
+#include "MovementAttributeSet.h"
 
 ATalulahCharacter::ATalulahCharacter()
 {
@@ -30,6 +31,9 @@ ATalulahCharacter::ATalulahCharacter()
 
 	CombatAS =
 		CreateDefaultSubobject<UCombatAttributeSet>(TEXT("CombatAttributeSet"));
+
+	MovementAS =
+		CreateDefaultSubobject<UMovementAttributeSet>(TEXT("MovementAttibuteSet"));
 
 	CameraBoom = CreateDefaultSubobject<USpringArmComponent>(TEXT("CameraBoom"));
 	CameraBoom->SetupAttachment(RootComponent);
@@ -100,7 +104,21 @@ void ATalulahCharacter::BeginPlay()
 		ASC->GetGameplayAttributeValueChangeDelegate(UCombatAttributeSet::GetHealthAttribute()).AddUObject(
 			this, &ATalulahCharacter::OnHealthChanged
 		);
+
+		ASC->GetGameplayAttributeValueChangeDelegate(
+			UMovementAttributeSet::GetMoveSpeedAttribute()
+		).AddUObject(
+			this,
+			&ATalulahCharacter::OnMoveSpeedChanged
+		);
 	}
+
+	GetCharacterMovement()->MaxWalkSpeed = MovementAS->GetMoveSpeed(); // 变化才通知，首次手动初始化
+}
+
+void ATalulahCharacter::OnMoveSpeedChanged(const FOnAttributeChangeData& Data)
+{
+	GetCharacterMovement()->MaxWalkSpeed = Data.NewValue;
 }
 
 void ATalulahCharacter::OnHealthChanged(const FOnAttributeChangeData& Data)
@@ -163,6 +181,20 @@ void ATalulahCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCo
 			ETriggerEvent::Completed,
 			this,
 			&ACharacter::StopJumping
+		);
+
+		EnhancedInputComponent->BindAction(
+			SprintAction,
+			ETriggerEvent::Started,
+			this,
+			&ATalulahCharacter::StartSprint
+		);
+
+		EnhancedInputComponent->BindAction(
+			SprintAction,
+			ETriggerEvent::Completed,
+			this,
+			&ATalulahCharacter::StopSprint
 		);
 	}
 }
@@ -357,3 +389,48 @@ void ATalulahCharacter::MulticastHandleDeath_Implementation()
 	}
 }
 
+void ATalulahCharacter::StartSprint()
+{
+	ServerStartSprint();
+}
+
+void ATalulahCharacter::StopSprint()
+{
+	ServerStopSprint();
+}
+
+void ATalulahCharacter::ServerStartSprint_Implementation()
+{
+	if (!ASC || !SprintEffectClass)
+	{
+		return;
+	}
+
+	if (SprintEffectHandle.IsValid())
+	{
+		return;
+	}
+
+	FGameplayEffectContextHandle Context = ASC->MakeEffectContext();
+	Context.AddSourceObject(this);
+
+	SprintEffectHandle = ASC->ApplyGameplayEffectToSelf(
+		SprintEffectClass->GetDefaultObject<UGameplayEffect>(),
+		1.f,
+		Context
+	);
+}
+
+void ATalulahCharacter::ServerStopSprint_Implementation()
+{
+	if (!ASC)
+	{
+		return;
+	}
+
+	if (SprintEffectHandle.IsValid())
+	{
+		ASC->RemoveActiveGameplayEffect(SprintEffectHandle);
+		SprintEffectHandle.Invalidate();
+	}
+}
