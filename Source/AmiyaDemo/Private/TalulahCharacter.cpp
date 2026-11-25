@@ -196,6 +196,17 @@ void ATalulahCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCo
 			this,
 			&ATalulahCharacter::StopSprint
 		);
+
+		if (Skill1Action)
+		{
+			EnhancedInputComponent->BindAction(
+				Skill1Action,
+				ETriggerEvent::Started,
+				this,
+				&ATalulahCharacter::InputSkill1
+			);
+		}
+
 	}
 }
 
@@ -214,6 +225,10 @@ void ATalulahCharacter::PossessedBy(AController* NewController)
 	{
 		ASC->GiveAbility(
 			FGameplayAbilitySpec(TestAbilityClass, 1, 0)
+		);
+
+		ASC->GiveAbility(
+			FGameplayAbilitySpec(Skill1AbilityClass, 1, 0)
 		);
 	}
 }
@@ -280,24 +295,7 @@ void ATalulahCharacter::PerformAttackTrace()  // Æ½ A ¼ì²â
 		QueryParams
 	);
 
-	FVector TraceVector = End - Start;
-	FVector Center = (Start + End) * 0.5f;
-
-	FQuat Rotation =
-		FRotationMatrix::MakeFromZ(TraceVector).ToQuat();
-
-	float HalfHeight = TraceVector.Size() * 0.5f + Radius;
-
-	DrawDebugCapsule(
-		GetWorld(),
-		Center,
-		HalfHeight,
-		Radius,
-		Rotation,
-		bHit ? FColor::Green : FColor::Red,
-		false,
-		1.f
-	);
+	MulticastDrawAttackDebug(Start, End, Radius, bHit);
 
 	if (bHit)
 	{
@@ -433,4 +431,35 @@ void ATalulahCharacter::ServerStopSprint_Implementation()
 		ASC->RemoveActiveGameplayEffect(SprintEffectHandle);
 		SprintEffectHandle.Invalidate();
 	}
+}
+
+void ATalulahCharacter::InputSkill1()
+{
+	if (!HasAuthority() || bIsDead || !Skill1AbilityClass)
+	{
+		return;
+	}
+
+	ASC->TryActivateAbilityByClass(Skill1AbilityClass);
+}
+
+void ATalulahCharacter::MulticastDrawAttackDebug_Implementation(FVector Start, FVector End, float Radius, bool bHit)
+{
+	FVector TraceVector = End - Start;
+	FVector Center = (Start + End) * 0.5f;
+
+	FQuat Rotation = FRotationMatrix::MakeFromZ(TraceVector).ToQuat();
+
+	float HalfHeight = TraceVector.Size() * 0.5f + Radius;
+
+	DrawDebugCapsule(
+		GetWorld(),
+		Center,
+		HalfHeight,
+		Radius,
+		Rotation,
+		bHit ? FColor::Green : FColor::Red,
+		false,
+		1.f
+	);
 }

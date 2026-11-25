@@ -1,4 +1,5 @@
 // Fill out your copyright notice in the Description page of Project Settings.
+// 鼠标右键一技能，R二技能，T大招
 
 #pragma once
 
@@ -125,5 +126,16 @@ private:
 	TSubclassOf<UGameplayEffect> SprintEffectClass;
 
 	FActiveGameplayEffectHandle SprintEffectHandle;
+
+	UFUNCTION(NetMulticast, Unreliable)
+	void MulticastDrawAttackDebug(FVector Start, FVector End, float Radius, bool bHit);
+
+	UPROPERTY(EditDefaultsOnly, Category = "Input")
+	TObjectPtr<UInputAction> Skill1Action;
+
+	UPROPERTY(EditDefaultsOnly, Category = "GAS|Abilities")
+	TSubclassOf<UGameplayAbility> Skill1AbilityClass;
+
+	void InputSkill1();   // "唤火"
 
 };
