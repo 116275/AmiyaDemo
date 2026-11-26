@@ -55,6 +55,7 @@ protected:
 
 private:
 
+	UPROPERTY(Replicated)
 	bool bIsDead = false;
 
 	void InitAbilityActorInfo();
@@ -137,5 +138,7 @@ private:
 	TSubclassOf<UGameplayAbility> Skill1AbilityClass;
 
 	void InputSkill1();   // "»½»ð"
+
+	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 
 };

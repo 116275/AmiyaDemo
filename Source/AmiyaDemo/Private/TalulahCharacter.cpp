@@ -14,6 +14,7 @@
 #include "Components/CapsuleComponent.h"
 #include "CombatAttributeSet.h"
 #include "MovementAttributeSet.h"
+#include "Net/UnrealNetwork.h"
 
 ATalulahCharacter::ATalulahCharacter()
 {
@@ -210,6 +211,13 @@ void ATalulahCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCo
 	}
 }
 
+void ATalulahCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
+{
+	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+
+	DOREPLIFETIME(ATalulahCharacter, bIsDead);
+}
+
 UAbilitySystemComponent* ATalulahCharacter::GetAbilitySystemComponent() const
 {
 	return ASC;
@@ -255,7 +263,7 @@ void ATalulahCharacter::InitAbilityActorInfo()
 
 void ATalulahCharacter::InputAttack()
 {
-	if (!ASC || !AttackAction)
+	if (!ASC || !AttackAction || bIsDead)
 	{
 		return;
 	}
@@ -435,7 +443,7 @@ void ATalulahCharacter::ServerStopSprint_Implementation()
 
 void ATalulahCharacter::InputSkill1()
 {
-	if (!HasAuthority() || bIsDead || !Skill1AbilityClass)
+	if (!ASC || bIsDead || !Skill1AbilityClass)
 	{
 		return;
 	}
