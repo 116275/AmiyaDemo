@@ -4,10 +4,13 @@
 
 #include "CoreMinimal.h"
 #include "Abilities/GameplayAbility.h"
+#include "Animation/AnimTypes.h"
 #include "TalulahSummonFireAbility.generated.h"
 
 class ATalulahCharacter;
 class UGameplayEffect;
+class UAnimMontage;
+class UAnimInstance;
 
 UCLASS()
 class AMIYADEMO_API UTalulahSummonFireAbility : public UGameplayAbility
@@ -49,5 +52,30 @@ protected:
 	TSubclassOf<UGameplayEffect> DamageEffectClass;
 
 	void ApplyAreaDamage(ATalulahCharacter* Talulah, const FVector& SkillCenter);  // ◊®√≈ Õ∑≈∑∂Œß…À∫¶
+
+	UPROPERTY(EditDefaultsOnly, Category = "Animation")
+	TObjectPtr<UAnimMontage> CastMontage;
+
+	UFUNCTION()
+	void OnMontageCompleted();
+
+	UFUNCTION()
+	void OnMontageCancelled();
+
+	TWeakObjectPtr<UAnimInstance> BoundAnimInstance;
+
+	UFUNCTION()
+	void OnMontageNotifyBegin(
+		FName NotifyName,
+		const FBranchingPointNotifyPayload& Payload
+	);
+
+	virtual void EndAbility(
+		const FGameplayAbilitySpecHandle Handle,
+		const FGameplayAbilityActorInfo* ActorInfo,
+		const FGameplayAbilityActivationInfo ActivationInfo,
+		bool bReplicateEndAbility,
+		bool bWasCancelled
+	) override;
 	
 };

@@ -4,6 +4,9 @@
 #include "DrawDebugHelpers.h"
 #include "CombatAttributeSet.h"
 #include "Engine/OverlapResult.h"
+#include "Abilities/Tasks/AbilityTask_PlayMontageAndWait.h"
+#include "Animation/AnimMontage.h"
+#include "Animation/AnimInstance.h"
 
 UTalulahSummonFireAbility::UTalulahSummonFireAbility()
 {
@@ -33,6 +36,69 @@ void UTalulahSummonFireAbility::ActivateAbility(   // 负责技能生命周期
 		EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
 		return;
 	}
+
+	UAbilityTask_PlayMontageAndWait* MontageTask =
+		UAbilityTask_PlayMontageAndWait::CreatePlayMontageAndWaitProxy(
+			this,			// 归属于哪个技能
+			NAME_None,		// 任务实例名称(默认)
+			CastMontage,	// 动画
+			1.f				// 速率
+		);
+
+	MontageTask->OnCompleted.AddDynamic(
+		this,
+		&UTalulahSummonFireAbility::OnMontageCompleted
+	);
+
+	MontageTask->OnInterrupted.AddDynamic(
+		this,
+		&UTalulahSummonFireAbility::OnMontageCancelled
+	);
+
+	MontageTask->OnCancelled.AddDynamic(
+		this,
+		&UTalulahSummonFireAbility::OnMontageCancelled
+	);
+
+	// 绑定 Montage Notify
+
+	UAnimInstance* AnimInstance = Talulah->GetMesh()->GetAnimInstance();
+
+	if (!AnimInstance)
+	{
+		EndAbility(Handle, ActorInfo, ActivationInfo, true, true);
+		return;
+	}
+
+	BoundAnimInstance = AnimInstance;
+
+	AnimInstance->OnPlayMontageNotifyBegin.AddUniqueDynamic(
+		this,
+		&UTalulahSummonFireAbility::OnMontageNotifyBegin
+	);
+
+	// 绑定 Montage Notify
+
+	MontageTask->ReadyForActivation();  // 调用带 GT 的动画
+}
+
+void UTalulahSummonFireAbility::OnMontageNotifyBegin(   // 实现通知回调
+	FName NotifyName,
+	const FBranchingPointNotifyPayload& Payload
+)
+{
+	if (NotifyName != FName(TEXT("PillarEruption")))
+	{
+		return;
+	}
+
+	if (!GetAvatarActorFromActorInfo()->HasAuthority())
+	{
+		return;
+	}
+
+	ATalulahCharacter* Talulah =
+		Cast<ATalulahCharacter>(GetAvatarActorFromActorInfo());
 
 	FVector FootLocation = Talulah->GetActorLocation();
 	FootLocation.Z -= Talulah->GetCapsuleComponent()->GetScaledCapsuleHalfHeight();
@@ -74,8 +140,65 @@ void UTalulahSummonFireAbility::ActivateAbility(   // 负责技能生命周期
 	// 初版特效
 
 	ApplyAreaDamage(Talulah, SkillCenter);
+}
 
-	EndAbility(Handle, ActorInfo, ActivationInfo, true, false);
+void UTalulahSummonFireAbility::EndAbility(
+	const FGameplayAbilitySpecHandle Handle,
+	const FGameplayAbilityActorInfo* ActorInfo,
+	const FGameplayAbilityActivationInfo ActivationInfo,
+	bool bReplicateEndAbility,
+	bool bWasCancelled
+)
+{
+	if (UAnimInstance* AnimInstance = BoundAnimInstance.Get())
+	{
+		AnimInstance->OnPlayMontageNotifyBegin.RemoveDynamic(
+			this,
+			&UTalulahSummonFireAbility::OnMontageNotifyBegin
+		);
+	}
+
+	BoundAnimInstance.Reset();
+
+	Super::EndAbility(
+		Handle,
+		ActorInfo,
+		ActivationInfo,
+		bReplicateEndAbility,
+		bWasCancelled
+	);
+}
+
+void UTalulahSummonFireAbility::OnMontageCompleted()
+{
+	if (!IsActive())
+	{
+		return;
+	}
+
+	EndAbility(
+		GetCurrentAbilitySpecHandle(),
+		GetCurrentActorInfo(),
+		GetCurrentActivationInfo(),
+		true,
+		false
+	);
+}
+
+void UTalulahSummonFireAbility::OnMontageCancelled()
+{
+	if (!IsActive())
+	{
+		return;
+	}
+
+	EndAbility(
+		GetCurrentAbilitySpecHandle(),
+		GetCurrentActorInfo(),
+		GetCurrentActivationInfo(),
+		true,
+		true
+	);
 }
 
 void UTalulahSummonFireAbility::ApplyAreaDamage(ATalulahCharacter* Talulah, const FVector& SkillCenter)
